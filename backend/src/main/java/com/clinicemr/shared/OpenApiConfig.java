@@ -19,7 +19,9 @@ public class OpenApiConfig {
 
     static {
         // ClinicContext is resolved from the token and header, not from request parameters
-        org.springdoc.core.utils.SpringDocUtils.getConfig().addRequestWrapperToIgnore(ClinicContext.class);
+        org.springdoc.core.utils.SpringDocUtils.getConfig()
+                .addRequestWrapperToIgnore(ClinicContext.class)
+                .addRequestWrapperToIgnore(com.clinicemr.shared.security.PatientContext.class);
     }
 
     @Bean

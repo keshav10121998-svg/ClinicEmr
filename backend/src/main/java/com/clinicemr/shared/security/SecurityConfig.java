@@ -62,11 +62,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    WebMvcConfigurer clinicContextResolverConfig(ClinicContextResolver resolver) {
+    WebMvcConfigurer contextResolverConfig(ClinicContextResolver clinicResolver, PatientContextResolver patientResolver) {
         return new WebMvcConfigurer() {
             @Override
             public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-                resolvers.add(resolver);
+                resolvers.add(clinicResolver);
+                resolvers.add(patientResolver);
             }
         };
     }

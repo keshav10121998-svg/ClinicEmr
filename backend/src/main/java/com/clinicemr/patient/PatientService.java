@@ -3,6 +3,7 @@ package com.clinicemr.patient;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.clinicemr.patient.PatientDtos.DuplicateCandidate;
@@ -166,6 +167,37 @@ public class PatientService {
                 .query(Long.class)
                 .optional()
                 .orElseThrow(() -> ApiException.notFound("Patient"));
+    }
+
+    /**
+     * Links an existing platform profile to this clinic (after the patient approved it) and returns the clinic's
+     * patient number. Linking lets the clinic create new records for the person; it doesn't share history.
+     */
+    @Transactional
+    public String linkToClinic(ClinicContext ctx, long profileId) {
+        return linkToClinic(ctx.clinicId(), profileId, "STAFF", String.valueOf(ctx.staffId()));
+    }
+
+    /** Same, when the patient approved in the app. */
+    @Transactional
+    public String linkToClinic(long clinicId, long profileId, String actorType, String actorId) {
+        Optional<String> existing = jdbc.sql("SELECT mrn FROM patient_identifier WHERE profile_id = :profileId AND clinic_id = :clinicId")
+                .param("profileId", profileId)
+                .param("clinicId", clinicId)
+                .query(String.class)
+                .optional();
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        String mrn = nextMrn(clinicId);
+        jdbc.sql("INSERT INTO patient_identifier (profile_id, clinic_id, mrn) VALUES (:profileId, :clinicId, :mrn)")
+                .param("profileId", profileId)
+                .param("clinicId", clinicId)
+                .param("mrn", mrn)
+                .update();
+        audit.record(actorType, actorId, clinicId, "PATIENT_LINKED", "patient_profile", String.valueOf(profileId),
+                Map.of("mrn", mrn));
+        return mrn;
     }
 
     /** A patient linked to this clinic, by internal id. */

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.UUID;
 
+import com.clinicemr.notification.SmsSender;
 import com.clinicemr.records.storage.ObjectStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,8 +60,41 @@ public abstract class IntegrationTestBase {
     @MockitoBean
     protected ObjectStorage storage;
 
+    @MockitoBean
+    protected SmsSender sms;
+
     protected static String uniqueEmail(String name) {
         return name + "-" + UUID.randomUUID().toString().substring(0, 8) + "@example.com";
+    }
+
+    /** A random Indian mobile number, so rate limits and lookups don't collide between tests. */
+    protected static String uniquePhone() {
+        return "9" + String.format("%09d", java.util.concurrent.ThreadLocalRandom.current().nextLong(1_000_000_000L));
+    }
+
+    /** All messages sent to a number so far, oldest first. */
+    protected java.util.List<String> smsTo(String e164) {
+        org.mockito.ArgumentCaptor<String> phone = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<String> text = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(sms, org.mockito.Mockito.atLeast(0)).send(phone.capture(), text.capture());
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (int i = 0; i < phone.getAllValues().size(); i++) {
+            if (phone.getAllValues().get(i).equals(e164)) {
+                out.add(text.getAllValues().get(i));
+            }
+        }
+        return out;
+    }
+
+    /** The 6-digit code in the latest message to a number. */
+    protected String lastOtp(String e164) {
+        java.util.List<String> messages = smsTo(e164);
+        String last = messages.get(messages.size() - 1);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(\\d{6})\\b").matcher(last);
+        if (!m.find()) {
+            throw new AssertionError("No code in: " + last);
+        }
+        return m.group(1);
     }
 
     /** Registers a clinic whose admin is also its doctor; returns the clinic id. */

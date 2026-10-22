@@ -39,6 +39,24 @@ public class TokenService {
         return new IssuedToken(token, expiresAt);
     }
 
+    public static final String PATIENT_ISSUER = "clinic-emr/patient";
+
+    public IssuedToken issuePatientToken(long accountId, String phoneE164) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(java.time.Duration.ofDays(30));
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(PATIENT_ISSUER)
+                .subject(String.valueOf(accountId))
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .claim("phone", phoneE164)
+                .claim("typ", "patient")
+                .build();
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        return new IssuedToken(token, expiresAt);
+    }
+
     public record IssuedToken(String value, Instant expiresAt) {
     }
 }

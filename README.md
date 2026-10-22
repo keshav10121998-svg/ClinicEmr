@@ -20,6 +20,8 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Allergies | `GET/POST /api/v1/clinic/patients/{id}/allergies`, `POST …/allergies/none-known`, `POST …/allergies/{allergyId}/status` |
 | Templates | `GET/POST /api/v1/me/templates`, `PUT/DELETE /api/v1/me/templates/{id}`, `POST /api/v1/clinic/encounters/{id}/apply-template` |
 | Favourites | `GET /api/v1/me/favourites?kind=DIAGNOSIS\|DRUG\|INVESTIGATION&q=`, `POST /api/v1/me/favourites/pin` |
+| Cross-clinic access (clinic) | `POST /api/v1/clinic/access-requests` (`phone` or `patientId`), `GET …/{id}`, `POST …/{id}/verify`, `POST …/{id}/grant`, `GET /api/v1/clinic/patients/{id}/access`, `GET …/shared-history`, `GET …/shared-history/documents/{docId}` |
+| Patient app | `POST /api/v1/auth/patient/otp`, `POST /api/v1/auth/patient/otp/verify`, `GET /api/v1/patient/profiles`, `GET /api/v1/patient/access-requests`, `POST …/{id}/approve`, `POST …/{id}/deny`, `GET /api/v1/patient/access`, `DELETE /api/v1/patient/access/{grantId}`, `GET /api/v1/patient/access-log` |
 
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
@@ -69,12 +71,40 @@ Both belong to the doctor and follow them across clinics.
   pinned, then use count, then last use.
 - **Repeat last prescription** returns the medicines from the patient's latest signed visit at this clinic.
 
+### Cross-clinic history (patient-approved)
+
+Each clinic is the custodian of the records it creates. Another clinic sees them only with the patient's approval:
+
+1. **Request.** Staff enter the patient's phone number (or pick a patient they already have). The patient gets an
+   SMS code and, if they use the app, an approval prompt. The response is identical whether or not the number is
+   registered anywhere, and shows only the masked number.
+2. **Approve.** Either the patient reads the code out at the counter (5 tries, then the request locks; codes last
+   10 minutes), or they tap Approve in the app.
+3. **Choose.** After approval, staff see the people on that number (name, age, gender) and pick who and what:
+   `VISITS` (signed visits and allergies) and/or `DOCUMENTS`, optionally only from a date, for `VISIT` (24 hours),
+   `DAYS_30` or `YEAR_1`. A doctor can make the grant **only for themselves**. Someone new to the clinic is linked
+   with a new patient number; linking alone shares nothing. In the app flow the patient makes these choices.
+4. **Read.** Doctors and nurses see the other clinics' signed visits (latest version, **without the private
+   note**), active allergies and documents within the grant. Front desk can't. Every read goes to the access log.
+5. **Control.** The patient gets an SMS for every new grant, sees active access and the full access log in the app,
+   and can revoke at any time. Revoking takes effect immediately.
+
+Every grant records the consent behind it (method, scope, notice version) for DPDP purposes. Limits: 30 requests
+per staff member and 5 per phone number per hour.
+
+The patient app signs in by phone OTP. On first sign-in, every profile registered with that number at any clinic
+becomes the account's own.
+
+**SMS in development:** with no SMS provider configured, messages (including codes) are written to the
+application log, with a warning at startup. Never run like that in production. A DLT-registered provider plugs in
+by adding an `SmsSender` bean.
+
 The ICD-10 and drug lists in `V3__terminology_seed.sql` are a starter set. Have them reviewed by a doctor and
 extended before launch. Prescriptions use the PDF's built-in Latin fonts, so Hindi or other Indian-script
 names need an embedded font (not done yet).
 
-Next up: patient-approved cross-clinic access (OTP / app approval, scoped and time-limited grants), patient app,
-front-end.
+Next up: patient app records (own visits, prescriptions, uploads), merging shared allergies into prescribing
+warnings and the summary, a real SMS provider through the outbox with retries, and the front-end.
 
 ## Run locally
 
