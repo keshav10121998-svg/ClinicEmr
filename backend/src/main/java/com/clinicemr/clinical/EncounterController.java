@@ -46,6 +46,12 @@ public class EncounterController {
         return encounters.saveDraft(ctx, id, req);
     }
 
+    @PostMapping("/api/v1/clinic/encounters/{id}/apply-template")
+    public EncounterView applyTemplate(ClinicContext ctx, @PathVariable UUID id,
+                                       @Valid @RequestBody EncounterDtos.ApplyTemplateRequest req) {
+        return encounters.applyTemplate(ctx, id, req);
+    }
+
     @PostMapping("/api/v1/clinic/encounters/{id}/sign")
     public EncounterView sign(ClinicContext ctx, @PathVariable UUID id) {
         return encounters.sign(ctx, id);

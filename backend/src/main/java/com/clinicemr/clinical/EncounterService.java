@@ -15,6 +15,10 @@ import java.util.TreeSet;
 import java.util.UUID;
 
 import com.clinicemr.clinical.EncounterDtos.AmendRequest;
+import com.clinicemr.clinical.EncounterDtos.ApplyTemplateRequest;
+import com.clinicemr.history.AllergyService;
+import com.clinicemr.productivity.FavouriteService;
+import com.clinicemr.productivity.TemplateService;
 import com.clinicemr.clinical.EncounterDtos.DoctorRef;
 import com.clinicemr.clinical.EncounterDtos.EncounterListItem;
 import com.clinicemr.clinical.EncounterDtos.EncounterView;
@@ -54,9 +58,13 @@ public class EncounterService {
     private final ClinicalRowsWriter rows;
     private final SnapshotHasher hasher;
     private final AuditService audit;
+    private final AllergyService allergies;
+    private final FavouriteService favourites;
+    private final TemplateService templates;
 
     public EncounterService(JdbcClient jdbc, ObjectMapper json, Validator validator, PatientService patients,
-                            ClinicalRowsWriter rows, SnapshotHasher hasher, AuditService audit) {
+                            ClinicalRowsWriter rows, SnapshotHasher hasher, AuditService audit,
+                            AllergyService allergies, FavouriteService favourites, TemplateService templates) {
         this.jdbc = jdbc;
         this.json = json;
         this.validator = validator;
@@ -64,6 +72,9 @@ public class EncounterService {
         this.rows = rows;
         this.hasher = hasher;
         this.audit = audit;
+        this.allergies = allergies;
+        this.favourites = favourites;
+        this.templates = templates;
     }
 
     record EncounterRow(UUID id, long profileId, long clinicId, long doctorId, String doctorName, String visitType,
@@ -126,7 +137,33 @@ public class EncounterService {
                     "This visit was changed elsewhere. Reload it before saving.",
                     Map.of("currentDraftVersion", e.draftVersion()));
         }
-        String draftJson = toJson(req.content());
+        if (req.content() == null) {
+            throw ApiException.badRequest("CONTENT_REQUIRED", "Send the visit content to save.");
+        }
+        writeDraft(id, req.content());
+        return view(ctx, find(ctx, id, false).orElseThrow());
+    }
+
+    /** Fills the draft from one of the doctor's templates without overwriting what's already entered. */
+    @Transactional
+    public EncounterView applyTemplate(ClinicContext ctx, UUID id, ApplyTemplateRequest req) {
+        ctx.require(ClinicRole.DOCTOR);
+        EncounterRow e = find(ctx, id, true).orElseThrow(() -> ApiException.notFound("Visit"));
+        requireDraft(e);
+        requireAuthor(ctx, e);
+        if (req.baseVersion() != e.draftVersion()) {
+            throw new ApiException(HttpStatus.CONFLICT, "DRAFT_VERSION_CONFLICT",
+                    "This visit was changed elsewhere. Reload it before applying a template.",
+                    Map.of("currentDraftVersion", e.draftVersion()));
+        }
+        var template = templates.use(ctx.staffId(), req.templateId());
+        EncounterContent merged = TemplateService.merge(fromJson(e.draft()), template, LocalDate.ofInstant(e.startedAt(), IST));
+        writeDraft(id, merged);
+        return view(ctx, find(ctx, id, false).orElseThrow());
+    }
+
+    private void writeDraft(UUID id, EncounterContent content) {
+        String draftJson = toJson(content);
         if (draftJson.length() > MAX_DRAFT_BYTES) {
             throw ApiException.badRequest("DRAFT_TOO_LARGE", "This visit has too much text to save.");
         }
@@ -137,7 +174,6 @@ public class EncounterService {
                 .param("draft", draftJson)
                 .param("id", id)
                 .update();
-        return view(ctx, find(ctx, id, false).orElseThrow());
     }
 
     @Transactional
@@ -170,6 +206,7 @@ public class EncounterService {
         SignedSnapshot snapshot = buildSnapshot(ctx, e, 1, signedAt, null, content);
         storeVersion(e.id(), snapshot, ctx.staffId(), null, null);
         rows.replace(e.id(), e.profileId(), e.clinicId(), e.startedAt(), content);
+        favourites.recordUse(ctx.staffId(), content);
 
         jdbc.sql("""
                 UPDATE encounter SET status = 'SIGNED', signed_at = :signedAt, current_version = 1,
@@ -407,8 +444,11 @@ public class EncounterService {
                 .map(v -> new VersionInfo(v.version(), v.signedAt(), v.amendmentReason(), changedFrom(v.diff()), v.contentHash()))
                 .toList();
         UUID patientPublicId = patients.getByProfileId(ctx, e.profileId()).publicId();
+        EncounterContent content = fromJson(e.draft());
+        List<PrescriptionSafety.Warning> warnings =
+                PrescriptionSafety.check(content, allergies.activeSubstances(e.profileId(), e.clinicId()));
         return new EncounterView(e.id(), patientPublicId, e.status(), e.visitType(), new DoctorRef(e.doctorId(), e.doctorName()),
-                e.startedAt(), e.signedAt(), e.draftVersion(), e.currentVersion(), fromJson(e.draft()), versions);
+                e.startedAt(), e.signedAt(), e.draftVersion(), e.currentVersion(), content, versions, warnings);
     }
 
     private List<String> changedFrom(String diff) {

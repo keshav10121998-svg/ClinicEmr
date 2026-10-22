@@ -46,7 +46,11 @@ public final class EncounterDtos {
             int draftVersion,
             int currentVersion,
             EncounterContent content,
-            List<VersionInfo> versions) {
+            List<VersionInfo> versions,
+            List<PrescriptionSafety.Warning> warnings) {
+    }
+
+    public record ApplyTemplateRequest(int baseVersion, @NotNull UUID templateId) {
     }
 
     public record EncounterListItem(UUID id, String visitType, Instant startedAt, Instant signedAt, String doctorName,

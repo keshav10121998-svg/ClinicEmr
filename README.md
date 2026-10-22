@@ -16,6 +16,10 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
 | Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
 | Terminology | `GET /api/v1/terminology/diagnoses?q=` (ICD-10 + local synonyms), `GET /api/v1/terminology/drugs?q=` |
+| Patient summary | `GET /api/v1/clinic/patients/{id}/summary`, `GET …/vitals?code=`, `GET …/last-prescription`, `POST …/problems/resolve`, `POST …/medicines/stop` |
+| Allergies | `GET/POST /api/v1/clinic/patients/{id}/allergies`, `POST …/allergies/none-known`, `POST …/allergies/{allergyId}/status` |
+| Templates | `GET/POST /api/v1/me/templates`, `PUT/DELETE /api/v1/me/templates/{id}`, `POST /api/v1/clinic/encounters/{id}/apply-template` |
+| Favourites | `GET /api/v1/me/favourites?kind=DIAGNOSIS\|DRUG\|INVESTIGATION&q=`, `POST /api/v1/me/favourites/pin` |
 
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
@@ -35,12 +39,42 @@ A clinic only sees patients linked to it; lookups never reveal whether a number 
   amendment notice on amended versions. The doctor's private note is never printed.
 - **Integrity:** `GET …/integrity` re-hashes every stored version to detect tampering.
 
+### Patient summary
+
+What the doctor sees first when opening a patient:
+
+- **Allergies**, with three distinct states: not asked yet, "no known allergies", or a list of allergies by
+  severity.
+- **Active problems:** diagnoses marked *chronic* in signed visits. A doctor can mark one resolved; it comes back
+  if it's diagnosed again later.
+- **Current medicines:** the latest prescription of each medicine, if it's long-term or its course hasn't ended
+  (a 3-day course started on day D runs through D+2, in IST). A doctor can stop a long-term medicine.
+- **Latest vitals**, the **last visit**, and up to 30 readings per vital for trend charts.
+
+Problems and medicines are computed from signed visits when read, so amendments show up immediately. For now
+only the current clinic's records are used; other clinics' records come with patient-approved access.
+
+While prescribing, each visit response includes **advisory warnings**: medicines that may conflict with a recorded
+allergy (including common classes such as penicillins, sulfa drugs, NSAIDs, cephalosporins) and duplicate
+medicines. They never block signing. This is a small starter list, not a drug-interaction database.
+
+### Templates and favourites
+
+Both belong to the doctor and follow them across clinics.
+
+- **Templates** ("Viral fever", "Diabetes follow-up") hold complaints, examination, advice, diagnoses, medicines,
+  tests and a follow-up interval. Applying one fills empty sections and adds missing diagnoses, medicines and
+  tests; it never overwrites what the doctor already typed.
+- **Favourites** are learned from every signed visit (with the doctor's usual dose and frequency) and ranked by
+  pinned, then use count, then last use.
+- **Repeat last prescription** returns the medicines from the patient's latest signed visit at this clinic.
+
 The ICD-10 and drug lists in `V3__terminology_seed.sql` are a starter set. Have them reviewed by a doctor and
 extended before launch. Prescriptions use the PDF's built-in Latin fonts, so Hindi or other Indian-script
 names need an embedded font (not done yet).
 
-Next up: patient summary (allergies, active problems, current medicines, vitals trends), doctor templates and
-favourites, patient-approved cross-clinic access, patient app, front-end.
+Next up: patient-approved cross-clinic access (OTP / app approval, scoped and time-limited grants), patient app,
+front-end.
 
 ## Run locally
 
