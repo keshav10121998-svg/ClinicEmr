@@ -11,74 +11,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.net.URI;
 import java.util.Optional;
 
-import com.clinicemr.records.storage.ObjectStorage;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-/**
- * End-to-end API flow against a real PostgreSQL 16 (embedded binaries, no Docker needed).
- * Object storage is mocked; the S3 adapter is exercised against MinIO when running locally.
- */
-@SpringBootTest
-@AutoConfigureMockMvc
-class ApiFlowTest {
-
-    static EmbeddedPostgres postgres;
-
-    @DynamicPropertySource
-    static void database(DynamicPropertyRegistry registry) throws Exception {
-        if (postgres == null) {
-            postgres = EmbeddedPostgres.builder().start();
-        }
-        registry.add("spring.datasource.url", () -> postgres.getJdbcUrl("postgres", "postgres"));
-        registry.add("spring.datasource.username", () -> "postgres");
-        registry.add("spring.datasource.password", () -> "postgres");
-    }
-
-    @AfterAll
-    static void stop() throws Exception {
-        if (postgres != null) {
-            postgres.close();
-        }
-    }
-
-    @Autowired
-    MockMvc mvc;
-
-    @Autowired
-    ObjectMapper json;
-
-    @MockitoBean
-    ObjectStorage storage;
+/** Clinic signup, staff, patients and documents. */
+class ApiFlowTest extends IntegrationTestBase {
 
     @Test
     void clinicStaffPatientsAndDocuments() throws Exception {
-        long clinicA = registerClinic("City Care Clinic", "asha@example.com");
-        String tokenA = login("asha@example.com");
+        String adminEmail = uniqueEmail("asha");
+        long clinicA = registerClinic("City Care Clinic", adminEmail);
+        String tokenA = login(adminEmail);
 
         // Admin adds a front-desk user, who can sign in and work for the clinic
+        String deskEmail = uniqueEmail("ravi");
         perform(post("/api/v1/clinic/staff"), tokenA, clinicA, """
-                {"name": "Ravi", "email": "ravi@example.com", "password": "front-desk-pass", "roles": ["FRONT_DESK"]}
-                """).andExpect(status().isCreated()).andExpect(jsonPath("$.roles[0]").value("FRONT_DESK"));
-        String tokenDesk = login("ravi@example.com");
+                {"name": "Ravi", "email": "%s", "password": "front-desk-pass", "roles": ["FRONT_DESK"]}
+                """.formatted(deskEmail)).andExpect(status().isCreated()).andExpect(jsonPath("$.roles[0]").value("FRONT_DESK"));
+        String tokenDesk = login(deskEmail, "front-desk-pass");
 
         // Front desk can't add staff
         perform(post("/api/v1/clinic/staff"), tokenDesk, clinicA, """
-                {"name": "X", "email": "x@example.com", "password": "xxxxxxxxxxxx", "roles": ["ADMIN"]}
-                """).andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ROLE_REQUIRED"));
+                {"name": "X", "email": "%s", "password": "xxxxxxxxxxxx", "roles": ["ADMIN"]}
+                """.formatted(uniqueEmail("x"))).andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("ROLE_REQUIRED"));
 
         // Register a patient by age; MRN is assigned per clinic
         JsonNode kamla = body(perform(post("/api/v1/clinic/patients"), tokenDesk, clinicA, """
@@ -105,8 +61,9 @@ class ApiFlowTest {
                 """).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
 
         // Another clinic can't find or open clinic A's patients
-        long clinicB = registerClinic("Other Clinic", "bob@example.com");
-        String tokenB = login("bob@example.com");
+        String bobEmail = uniqueEmail("bob");
+        long clinicB = registerClinic("Other Clinic", bobEmail);
+        String tokenB = login(bobEmail);
         perform(post("/api/v1/clinic/patients/search-by-phone"), tokenB, clinicB, """
                 {"phone": "9876543210"}
                 """).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
@@ -149,36 +106,5 @@ class ApiFlowTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
         mvc.perform(get("/api/v1/clinic")).andExpect(status().isUnauthorized());
-    }
-
-    private long registerClinic(String name, String email) throws Exception {
-        JsonNode res = body(mvc.perform(post("/api/v1/clinics").contentType(MediaType.APPLICATION_JSON).content("""
-                {"clinic": {"name": "%s", "city": "Bengaluru", "pincode": "560038"},
-                 "admin": {"name": "Admin", "email": "%s", "password": "a-long-password",
-                           "doctor": {"registrationNo": "KMC-1", "registrationCouncil": "Karnataka Medical Council",
-                                      "qualifications": "MBBS"}}}
-                """.formatted(name, email))).andExpect(status().isCreated()));
-        return res.get("clinicId").asLong();
-    }
-
-    private String login(String email) throws Exception {
-        String password = email.startsWith("ravi") ? "front-desk-pass" : "a-long-password";
-        JsonNode res = body(mvc.perform(post("/api/v1/auth/staff/login").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\": \"%s\", \"password\": \"%s\"}".formatted(email, password)))
-                .andExpect(status().isOk()));
-        return res.get("accessToken").asText();
-    }
-
-    private ResultActions perform(MockHttpServletRequestBuilder req, String token, long clinicId, String body)
-            throws Exception {
-        req.header("Authorization", "Bearer " + token).header("X-Clinic-Id", clinicId);
-        if (body != null) {
-            req.contentType(MediaType.APPLICATION_JSON).content(body);
-        }
-        return mvc.perform(req);
-    }
-
-    private JsonNode body(ResultActions result) throws Exception {
-        return json.readTree(result.andReturn().getResponse().getContentAsString());
     }
 }

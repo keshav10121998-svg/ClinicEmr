@@ -168,6 +168,17 @@ public class PatientService {
                 .orElseThrow(() -> ApiException.notFound("Patient"));
     }
 
+    /** A patient linked to this clinic, by internal id. */
+    public PatientView getByProfileId(ClinicContext ctx, long profileId) {
+        return jdbc.sql(SELECT_LINKED + " AND p.id = :id")
+                .param("clinicId", ctx.clinicId())
+                .param("id", profileId)
+                .query(PatientRow.class)
+                .optional()
+                .orElseThrow(() -> ApiException.notFound("Patient"))
+                .toView();
+    }
+
     private List<DuplicateCandidate> findDuplicates(long clinicId, String phone, String name, String gender, LocalDate dob) {
         record Row(UUID publicId, String mrn, String name, String gender, LocalDate dob, double sim) {
         }

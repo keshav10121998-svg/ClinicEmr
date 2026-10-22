@@ -4,7 +4,7 @@ Cloud system for clinic doctors to record patient visits, diagnoses and treatmen
 that follows the patient across clinics once they approve. Design and roadmap:
 [Clinic EMR & Patient History Plan](https://claude.ai/artifact/NGJ7no2zsLp9N3s8TmWpfv).
 
-## What's built so far (Phase 0 + start of Sprint 1–2)
+## What's built so far
 
 | Area | Endpoints |
 |---|---|
@@ -13,12 +13,34 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Clinic and staff | `GET /api/v1/clinic`, `GET/POST /api/v1/clinic/staff` |
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/{id}` |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents`, `GET …/documents/{docId}` (pre-signed view URLs) |
+| Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
+| Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
+| Terminology | `GET /api/v1/terminology/diagnoses?q=` (ICD-10 + local synonyms), `GET /api/v1/terminology/drugs?q=` |
 
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
 
-Next up: encounters (visit recording, signing, amendments), prescriptions and PDFs, patient summaries,
-patient-approved cross-clinic access, patient app.
+### How visits work
+
+- **Draft:** the doctor starts a visit; the doctor (or a nurse) autosaves the whole visit body. Each save sends
+  the `baseVersion` it last saw; a stale save gets `409 DRAFT_VERSION_CONFLICT`. Drafts aren't validated, so
+  half-typed entries are kept.
+- **Sign:** only the visit's doctor can sign. Signing validates the visit (at least one diagnosis, complete
+  prescription lines, follow-up after the visit date), stores an immutable snapshot with a SHA-256 hash
+  (including patient, clinic and doctor details at that moment), and writes the structured rows: notes,
+  LOINC-coded vitals, diagnoses, prescription, investigations, follow-up.
+- **Amend:** signed visits are never edited. The doctor submits corrected content and a reason; this creates
+  version 2, 3… with the list of changed sections. Earlier versions stay in `encounter_version`.
+- **Prescription PDF:** rendered from the latest signed snapshot, so reprints match what was signed. Shows the
+  amendment notice on amended versions. The doctor's private note is never printed.
+- **Integrity:** `GET …/integrity` re-hashes every stored version to detect tampering.
+
+The ICD-10 and drug lists in `V3__terminology_seed.sql` are a starter set. Have them reviewed by a doctor and
+extended before launch. Prescriptions use the PDF's built-in Latin fonts, so Hindi or other Indian-script
+names need an embedded font (not done yet).
+
+Next up: patient summary (allergies, active problems, current medicines, vitals trends), doctor templates and
+favourites, patient-approved cross-clinic access, patient app, front-end.
 
 ## Run locally
 

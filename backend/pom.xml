@@ -87,6 +87,13 @@
             <artifactId>s3</artifactId>
         </dependency>
 
+        <!-- Prescription PDFs from HTML templates -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.1.98</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
