@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: clinic-emr
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/clinic_emr}
+    username: ${DB_USER:clinic}
+    password: ${DB_PASSWORD:clinic}
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+
+app:
+  security:
+    # HMAC key for staff JWTs. Must be at least 32 bytes. Override in every non-local environment.
+    jwt-secret: ${JWT_SECRET:local-dev-only-secret-change-me-0123456789}
+    token-ttl: PT12H
+  storage:
+    # Any S3-compatible store. Local: MinIO from docker-compose. Cloud: Oracle Object Storage (see README).
+    endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
+    region: ${STORAGE_REGION:ap-mumbai-1}
+    bucket: ${STORAGE_BUCKET:clinic-emr-documents}
+    access-key: ${STORAGE_ACCESS_KEY:minioadmin}
+    secret-key: ${STORAGE_SECRET_KEY:minioadmin}
+    path-style: ${STORAGE_PATH_STYLE:true}
+    presign-ttl: PT5M
+    max-file-bytes: 20971520
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
