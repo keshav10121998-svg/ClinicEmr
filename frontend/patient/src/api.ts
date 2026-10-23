@@ -1,0 +1,79 @@
+import type { Problem } from './types';
+
+export class ApiError extends Error {
+  constructor(public readonly problem: Problem) {
+    super(problem.detail ?? `Request failed (${problem.status})`);
+  }
+  get code() {
+    return this.problem.code;
+  }
+}
+
+let token: string | undefined;
+let onUnauthorized: () => void = () => {};
+
+export function setToken(t?: string) {
+  token = t;
+}
+
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler;
+}
+
+function headers(json: boolean): HeadersInit {
+  const h: Record<string, string> = {};
+  if (json) h['Content-Type'] = 'application/json';
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, {
+      method,
+      headers: headers(body !== undefined),
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError({ status: 0, code: 'NETWORK', detail: "Can't reach ClinicEMR. Check your internet connection." });
+  }
+  if (res.status === 401 && token) onUnauthorized();
+  if (!res.ok) {
+    let problem: Problem = { status: res.status };
+    try {
+      problem = { ...(await res.json()), status: res.status };
+    } catch {
+      // not JSON
+    }
+    throw new ApiError(problem);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
+  del: <T>(path: string) => request<T>('DELETE', path),
+};
+
+/** Opens a file that needs the sign-in header. The tab is opened inside the tap so the browser allows it. */
+export async function openAuthed(path: string) {
+  const tab = window.open('', '_blank');
+  try {
+    const res = await fetch(`/api/v1${path}`, { headers: headers(false) });
+    if (!res.ok) throw new ApiError({ status: res.status, detail: "The file couldn't be opened." });
+    const url = URL.createObjectURL(await res.blob());
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
+}
+
+/** Opens a pre-signed storage link (already authorised) in a new tab. */
+export function openUrl(url: string) {
+  window.open(url, '_blank', 'noopener');
+}

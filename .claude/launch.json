@@ -14,6 +14,13 @@
       "runtimeArgs": ["/c", "npm", "run", "dev"],
       "port": 5173,
       "cwd": "frontend/clinic"
+    },
+    {
+      "name": "patient",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "dev"],
+      "port": 5174,
+      "cwd": "frontend/patient"
     }
   ]
 }

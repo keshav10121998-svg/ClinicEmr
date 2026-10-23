@@ -58,6 +58,25 @@ The session token is kept in `sessionStorage`, so closing the tab signs out on s
 **Trying the sharing flow locally:** with no SMS provider configured, codes are written to the backend log
 (`backend/target/dev-server.log` when started as in the run instructions, look for `[DEV SMS`).
 
+### Patient app (`frontend/patient`)
+
+Phone-first web app (React + TypeScript + Vite) for patients and families:
+
+- **Sign in** with mobile number and SMS code. The sign-in lasts 30 days on that phone, until *Sign out*.
+- **Family switcher:** every profile linked to the number (registered at any clinic, or managed as caregiver).
+- **Visits:** every signed visit from every clinic, newest first. The detail page shows diagnoses, medicines in
+  plain words ("for 7 days", "continue until the doctor says"), tests and next visit, marks visits the doctor
+  updated, and downloads the prescription PDF. Doctors' private notes never appear.
+- **Documents:** clinic documents (marked "From <clinic>") and the family's own uploads (marked "Added by you").
+  Upload photos or PDFs (several pages per document) straight to storage; open; delete own uploads after a
+  confirmation step.
+- **Sharing:** requests from clinics appear at the top of every tab, checked every 10 seconds while the app is
+  open. The patient picks whose records, what (visits / documents) and for how long, or declines. The tab also
+  lists who can see records now (with *Stop sharing*) and who looked, in plain words.
+
+Not done yet: push notifications for requests, profile management (add a family member, invite a caregiver),
+Hindi and regional-language UI. Uploads abandoned midway stay as unfinished rows until a cleanup job is added.
+
 ### How visits work
 
 - **Draft:** the doctor starts a visit; the doctor (or a nurse) autosaves the whole visit body. Each save sends
@@ -186,6 +205,17 @@ npm run dev
 ```
 
 Open http://localhost:5173, choose **Set up your clinic**, and sign in.
+
+**Patient app** (proxies `/api` to the same backend):
+
+```bash
+cd frontend/patient
+npm install
+npm run dev
+```
+
+Open http://localhost:5174 and sign in with the mobile number of a patient registered at a clinic. Without an SMS
+provider the code is in the backend log (`[DEV SMS`).
 
 - API docs: http://localhost:18080/swagger-ui.html
 - MinIO console: http://localhost:9001 (minioadmin / minioadmin)
