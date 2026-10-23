@@ -68,7 +68,7 @@ Phone-first web app (React + TypeScript + Vite) for patients and families:
   plain words ("for 7 days", "continue until the doctor says"), tests and next visit, marks visits the doctor
   updated, and downloads the prescription PDF. Doctors' private notes never appear.
 - **Documents:** clinic documents (marked "From <clinic>") and the family's own uploads (marked "Added by you").
-  Upload photos or PDFs (several pages per document) straight to storage; open; delete own uploads after a
+  Upload photos or PDFs (several pages per document) (checked by the backend before storing); open; delete own uploads after a
   confirmation step.
 - **Sharing:** requests from clinics appear at the top of every tab, checked every 10 seconds while the app is
   open. The patient picks whose records, what (visits / documents) and for how long, or declines. The tab also
@@ -181,7 +181,8 @@ a real SMS provider through the outbox with retries, virus scanning of uploads, 
 
 Requirements: Java 21, Node 18+. Docker Desktop is optional (PostgreSQL and MinIO).
 
-**Quick start without Docker** (embedded PostgreSQL in `backend/target/dev-db`; document uploads need MinIO or Oracle):
+**Quick start without Docker** (embedded PostgreSQL in `backend/target/dev-db`, documents on disk in
+`backend/target/dev-storage`; everything works, including uploads):
 
 ```bash
 cd backend
@@ -242,32 +243,57 @@ cd backend
 ```
 
 The API flow test runs against a real PostgreSQL 16 using embedded binaries, so it doesn't need Docker.
-Object storage is mocked in tests.
+Object storage is mocked in the API tests; the disk store has its own unit tests (signing, expiry, path safety).
 
-## File storage: Oracle Cloud free tier
+## File storage
 
-The app talks to any S3-compatible store. Locally that's MinIO; in the cloud use **Oracle Object Storage**
-(Always Free: 20 GB, with Mumbai and Hyderabad regions).
+### How uploads and downloads work
+
+- **Uploads go through the backend** (`STORAGE_UPLOAD_MODE=proxy`, the default). The app starts an upload, PUTs
+  each page to the backend, which checks the size (20 MB per file) and the file's real type from its first bytes
+  (PDF, JPEG, PNG, WebP, HEIC; anything else is refused), then writes it to storage. The bucket needs **no CORS
+  rules**, and nothing unchecked reaches it.
+- **Downloads use short-lived signed links** (5 minutes) issued after the permission check. The app opens them
+  in a new tab, so CORS doesn't apply there either.
+- `STORAGE_UPLOAD_MODE=direct` hands browsers pre-signed PUT URLs instead (S3 only). It skips the content check
+  and needs a CORS rule on the bucket for the front-end origins. Use it only if upload traffic through the
+  backend becomes a problem.
+
+### Choose a store (`STORAGE_TYPE`)
+
+| Store | When | Setup |
+|---|---|---|
+| `local` | Development | Nothing. The dev server (`spring-boot:test-run`) uses it by default: files go to `backend/target/dev-storage` and download links are signed by the backend. Not for production. |
+| `s3` + MinIO | Development with Docker | `docker compose up -d`, then `./mvnw spring-boot:run` (defaults point at MinIO). To use MinIO with the dev server, set `STORAGE_TYPE=s3`. |
+| `s3` + Oracle | Cloud (free tier) | See below. |
+
+### Oracle Cloud Object Storage (Always Free: 20 GB, Mumbai and Hyderabad regions)
+
+You do steps 1–4 in the Oracle console; creating the account and keys has to be done by you.
 
 1. Create an Oracle Cloud account and choose **India West (Mumbai)** or **India South (Hyderabad)** as the
    home region. Always Free resources only exist in the home region, and it can't be changed later.
-2. Object Storage → create a **private** bucket, e.g. `clinic-emr-documents`.
-3. Note your **Object Storage namespace** (Tenancy details page).
-4. Profile → **Customer Secret Keys** → generate a key. This gives an access key and a secret key for the
-   S3 compatibility API.
-5. Set these environment variables for the backend:
+2. **Storage → Buckets → Create bucket**: name `clinic-emr-documents`, *Standard* tier, visibility
+   **Private** (the default). Leave encryption on Oracle-managed keys.
+3. **Tenancy details**: note the **Object Storage namespace** (a short random string).
+4. **Profile → Customer secret keys → Generate secret key**. Copy the secret right away (it's shown once); the
+   access key appears in the list. These are the S3-compatible credentials. For a real deployment, create them
+   for a dedicated user whose group can only manage objects in this bucket, not for your admin user.
+5. Start the backend with these environment variables (never commit them):
 
 ```bash
+STORAGE_TYPE=s3
 STORAGE_ENDPOINT=https://<namespace>.compat.objectstorage.ap-mumbai-1.oraclecloud.com
 STORAGE_REGION=ap-mumbai-1
 STORAGE_BUCKET=clinic-emr-documents
-STORAGE_ACCESS_KEY=<customer secret key access key>
-STORAGE_SECRET_KEY=<customer secret key secret>
+STORAGE_ACCESS_KEY=<access key>
+STORAGE_SECRET_KEY=<secret key>
 STORAGE_PATH_STYLE=true
 ```
 
-(Use `ap-hyderabad-1` for Hyderabad.) Browser uploads also need a CORS rule on the bucket for your front-end
-origin, set from the Oracle console or CLI.
+Use `ap-hyderabad-1` in both places for Hyderabad. No CORS setup is needed with the default upload mode.
+To check the connection, upload a document from the patient app and confirm it appears in the bucket under
+`documents/<id>/1.pdf`.
 
 The free tier has no SLA. Keep a nightly copy of the bucket elsewhere, and move to paid storage once clinics
 depend on it.
@@ -278,5 +304,8 @@ depend on it.
 |---|---|
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | `jdbc:postgresql://localhost:5432/clinic_emr`, `clinic`, `clinic` |
 | `JWT_SECRET` | dev-only value; **must** be set to a random 32+ byte secret everywhere else |
-| `STORAGE_*` | MinIO from docker-compose |
+| `STORAGE_TYPE` | `s3` (the dev server switches to `local` unless set) |
+| `STORAGE_UPLOAD_MODE` | `proxy` |
+| `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_PATH_STYLE` | MinIO from docker-compose |
+| `STORAGE_LOCAL_DIR`, `STORAGE_LOCAL_BASE_URL` | `target/dev-storage`, `http://localhost:18080` |
 | `PORT` | `18080` |

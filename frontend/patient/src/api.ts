@@ -73,6 +73,28 @@ export async function openAuthed(path: string) {
   }
 }
 
+/**
+ * Uploads one page. Relative URLs are this backend (which checks the file and needs the sign-in header);
+ * absolute URLs are pre-signed storage URLs that must not get it.
+ */
+export async function putFile(url: string, contentType: string, file: Blob) {
+  const isBackend = url.startsWith('/');
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: isBackend && token ? { 'Content-Type': contentType, Authorization: `Bearer ${token}` } : { 'Content-Type': contentType },
+    body: file,
+  });
+  if (!res.ok) {
+    let problem: Problem = { status: res.status };
+    try {
+      problem = { ...(await res.json()), status: res.status };
+    } catch {
+      // storage errors aren't JSON
+    }
+    throw new ApiError(problem);
+  }
+}
+
 /** Opens a pre-signed storage link (already authorised) in a new tab. */
 export function openUrl(url: string) {
   window.open(url, '_blank', 'noopener');

@@ -8,7 +8,9 @@ import com.clinicemr.records.DocumentDtos.DocumentSummary;
 import com.clinicemr.records.DocumentDtos.StartUploadRequest;
 import com.clinicemr.records.DocumentDtos.StartUploadResponse;
 import com.clinicemr.shared.security.ClinicContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +35,14 @@ public class DocumentController {
     public StartUploadResponse start(ClinicContext ctx, @PathVariable UUID patientId,
                                      @Valid @RequestBody StartUploadRequest req) {
         return documents.startUpload(ctx, patientId, req);
+    }
+
+    /** One page's bytes, sent with the Content-Type announced when the upload started. */
+    @PutMapping("/{documentId}/pages/{pageNo}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void uploadPage(ClinicContext ctx, @PathVariable UUID patientId, @PathVariable UUID documentId,
+                           @PathVariable int pageNo, HttpServletRequest request) throws java.io.IOException {
+        documents.uploadPage(ctx, patientId, documentId, pageNo, request.getContentType(), request.getInputStream());
     }
 
     @PostMapping("/{documentId}/complete")

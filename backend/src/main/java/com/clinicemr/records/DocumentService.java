@@ -40,10 +40,16 @@ public class DocumentService {
     public StartUploadResponse startUpload(ClinicContext ctx, UUID patientId, StartUploadRequest req) {
         long profileId = patients.requireLinkedProfileId(ctx, patientId);
         StartUploadResponse res = store.start(profileId,
-                new DocumentStore.Origin("CLINIC", ctx.clinicId(), "staff:" + ctx.staffId(), true), req);
+                new DocumentStore.Origin("CLINIC", ctx.clinicId(), "staff:" + ctx.staffId(), true), req,
+                (docId, page) -> "/api/v1/clinic/patients/" + patientId + "/documents/" + docId + "/pages/" + page);
         audit.staff(ctx.staffId(), ctx.clinicId(), "DOCUMENT_UPLOAD_STARTED", "medical_document",
                 res.documentId().toString(), Map.of("pages", res.uploads().size()));
         return res;
+    }
+
+    public void uploadPage(ClinicContext ctx, UUID patientId, UUID documentId, int pageNo, String contentType,
+                           java.io.InputStream body) {
+        store.storePage(ownDocument(ctx, patientId, documentId), pageNo, contentType, body);
     }
 
     // Keep the REJECTED status even though the call ends with an error

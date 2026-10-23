@@ -110,6 +110,12 @@ class PatientRecordsTest extends IntegrationTestBase {
                 {"docType": "DISCHARGE_SUMMARY", "title": "2019 hospital discharge", "recordDate": "2019-08-14",
                  "files": [{"mimeType": "image/jpeg", "sizeBytes": 80000}, {"mimeType": "image/jpeg", "sizeBytes": 80000}]}
                 """).andExpect(status().isCreated())).get("documentId").asText();
+        byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F'};
+        for (int page = 1; page <= 2; page++) {
+            mvc.perform(put(docs + "/" + docId + "/pages/" + page).header("Authorization", "Bearer " + token)
+                            .contentType("image/jpeg").content(jpeg))
+                    .andExpect(status().isNoContent());
+        }
         app(post(docs + "/" + docId + "/complete"), token, null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source").value("PATIENT"))

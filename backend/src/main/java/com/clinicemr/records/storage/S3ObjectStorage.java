@@ -4,7 +4,9 @@ import java.net.URL;
 import java.util.Optional;
 
 import jakarta.annotation.PreDestroy;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
@@ -21,6 +23,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Component
+@ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "s3", matchIfMissing = true)
 public class S3ObjectStorage implements ObjectStorage {
 
     private final StorageProperties props;
@@ -64,6 +67,12 @@ public class S3ObjectStorage implements ObjectStorage {
     public URL presignDownload(String key) {
         GetObjectRequest get = GetObjectRequest.builder().bucket(props.bucket()).key(key).build();
         return presigner.presignGetObject(b -> b.signatureDuration(props.presignTtl()).getObjectRequest(get)).url();
+    }
+
+    @Override
+    public void put(String key, String contentType, byte[] bytes) {
+        client.putObject(PutObjectRequest.builder().bucket(props.bucket()).key(key).contentType(contentType).build(),
+                RequestBody.fromBytes(bytes));
     }
 
     @Override

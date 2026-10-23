@@ -72,6 +72,7 @@ button:disabled { opacity: .55; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 button.danger { color: var(--danger); }
 button.link { border: 0; background: none; color: var(--accent); padding: 4px; min-height: 0; }
+button.link.danger { color: var(--danger); }
 button.block { width: 100%; }
 
 .alert { border-radius: var(--radius); padding: 11px 14px; font-size: 14px; }

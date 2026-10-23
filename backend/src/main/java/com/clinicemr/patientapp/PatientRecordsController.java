@@ -7,7 +7,9 @@ import com.clinicemr.records.DocumentDtos.DocumentDetail;
 import com.clinicemr.records.DocumentDtos.StartUploadRequest;
 import com.clinicemr.records.DocumentDtos.StartUploadResponse;
 import com.clinicemr.shared.security.PatientContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -64,6 +66,13 @@ public class PatientRecordsController {
     public StartUploadResponse upload(PatientContext p, @PathVariable UUID profileId,
                                       @Valid @RequestBody StartUploadRequest req) {
         return records.startUpload(p, profileId, req);
+    }
+
+    @PutMapping("/documents/{documentId}/pages/{pageNo}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void uploadPage(PatientContext p, @PathVariable UUID profileId, @PathVariable UUID documentId,
+                           @PathVariable int pageNo, HttpServletRequest request) throws java.io.IOException {
+        records.uploadPage(p, profileId, documentId, pageNo, request.getContentType(), request.getInputStream());
     }
 
     @PostMapping("/documents/{documentId}/complete")

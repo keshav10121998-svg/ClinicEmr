@@ -118,10 +118,16 @@ public class PatientRecordsService {
     @Transactional
     public StartUploadResponse startUpload(PatientContext p, UUID profileId, StartUploadRequest req) {
         long id = requireProfile(p, profileId);
-        StartUploadResponse res = store.start(id, new DocumentStore.Origin("PATIENT", null, "account:" + p.accountId(), false), req);
+        StartUploadResponse res = store.start(id, new DocumentStore.Origin("PATIENT", null, "account:" + p.accountId(), false), req,
+                (docId, page) -> "/api/v1/patient/profiles/" + profileId + "/documents/" + docId + "/pages/" + page);
         audit.record("PATIENT", "account:" + p.accountId(), null, "DOCUMENT_UPLOAD_STARTED", "medical_document",
                 res.documentId().toString(), Map.of("pages", res.uploads().size()));
         return res;
+    }
+
+    public void uploadPage(PatientContext p, UUID profileId, UUID documentId, int pageNo, String contentType,
+                           java.io.InputStream body) {
+        store.storePage(ownUpload(p, profileId, documentId), pageNo, contentType, body);
     }
 
     @Transactional(noRollbackFor = ApiException.class)

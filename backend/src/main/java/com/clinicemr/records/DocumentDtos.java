@@ -30,7 +30,11 @@ public final class DocumentDtos {
             @NotEmpty @Size(max = 20, message = "at most 20 pages per document") List<@Valid FileSpec> files) {
     }
 
-    public record UploadTarget(int pageNo, String method, URL url, String contentType) {
+    /**
+     * Where to PUT one page. A relative URL ({@code /api/v1/…}) is this backend and needs the usual Authorization
+     * header; an absolute URL is a pre-signed storage URL and needs only the Content-Type.
+     */
+    public record UploadTarget(int pageNo, String method, String url, String contentType) {
     }
 
     public record StartUploadResponse(UUID documentId, List<UploadTarget> uploads, Instant urlsExpireAt, String next) {

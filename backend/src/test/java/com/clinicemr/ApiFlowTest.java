@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,6 +86,25 @@ class ApiFlowTest extends IntegrationTestBase {
                 """).andExpect(status().isCreated()));
         String docId = upload.get("documentId").asText();
         assertThat(upload.get("uploads").get(0).get("method").asText()).isEqualTo("PUT");
+        String pageUrl = upload.get("uploads").get(0).get("url").asText();
+        assertThat(pageUrl).isEqualTo("/api/v1/clinic/patients/" + kamlaId + "/documents/" + docId + "/pages/1");
+
+        // Pages go through the backend, which checks the real file type before storing
+        byte[] notAPdf = {'M', 'Z', (byte) 0x90, 0, 3, 0};
+        mvc.perform(put(pageUrl).header("Authorization", "Bearer " + tokenDesk).header("X-Clinic-Id", clinicA)
+                        .contentType("application/pdf").content(notAPdf))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("CONTENT_NOT_ALLOWED"));
+        mvc.perform(put(pageUrl).header("Authorization", "Bearer " + tokenDesk).header("X-Clinic-Id", clinicA)
+                        .contentType("image/png").content("%PDF-1.7 test".getBytes()))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("CONTENT_TYPE_MISMATCH"));
+        mvc.perform(put(pageUrl).header("Authorization", "Bearer " + tokenB).header("X-Clinic-Id", clinicB)
+                        .contentType("application/pdf").content("%PDF-1.7 test".getBytes()))
+                .andExpect(status().isNotFound());
+        mvc.perform(put(pageUrl).header("Authorization", "Bearer " + tokenDesk).header("X-Clinic-Id", clinicA)
+                        .contentType("application/pdf").content("%PDF-1.7 test".getBytes()))
+                .andExpect(status().isNoContent());
+        org.mockito.Mockito.verify(storage).put(org.mockito.ArgumentMatchers.endsWith("/1.pdf"),
+                org.mockito.ArgumentMatchers.eq("application/pdf"), org.mockito.ArgumentMatchers.any());
 
         perform(post("/api/v1/clinic/patients/" + kamlaId + "/documents/" + docId + "/complete"), tokenDesk, clinicA, null)
                 .andExpect(status().isOk()).andExpect(jsonPath("$.verified").value(true));

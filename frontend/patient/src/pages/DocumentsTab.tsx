@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError, openUrl } from '../api';
+import { api, ApiError, openUrl, putFile } from '../api';
 import type { PatientDocument, UploadStart } from '../types';
 import { date } from '../format';
 
@@ -113,18 +113,16 @@ function UploadForm({ profileId, onDone, onCancel }: { profileId: string; onDone
         docType, title: title || undefined, recordDate: recordDate || undefined,
         files: files.map((f) => ({ mimeType: mimeOf(f), sizeBytes: f.size })),
       });
-      // Files go straight to storage; the server never handles the bytes
       for (const [i, u] of start.uploads.entries()) {
         setProgress(`Uploading page ${i + 1} of ${start.uploads.length}…`);
-        const res = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': u.contentType }, body: files[i] });
-        if (!res.ok) throw new Error(`Page ${i + 1} didn't upload (${res.status}). Try again.`);
+        await putFile(u.url, u.contentType, files[i]);
       }
       setProgress('Finishing…');
       await api.post(`/patient/profiles/${profileId}/documents/${start.documentId}/complete`);
       onDone();
     } catch (err) {
       setProgress(undefined);
-      setError(err instanceof Error ? (err instanceof ApiError || err.message.startsWith('Page') ? err.message : "Upload failed. Check your connection and try again.") : 'Upload failed.');
+      setError(err instanceof ApiError && err.problem.detail ? err.message : 'Upload failed. Check your connection and try again.');
     }
   }
 

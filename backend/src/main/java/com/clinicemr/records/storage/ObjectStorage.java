@@ -4,14 +4,16 @@ import java.net.URL;
 import java.util.Optional;
 
 /**
- * Port for document storage. Files never pass through the application: clients upload and download
- * directly with short-lived pre-signed URLs issued after a permission check.
+ * Port for document storage. Downloads use short-lived signed URLs issued after a permission check. Uploads go
+ * through the backend ({@link #put}) by default, or straight to storage with a pre-signed PUT URL.
  */
 public interface ObjectStorage {
 
     URL presignUpload(String key, String contentType);
 
     URL presignDownload(String key);
+
+    void put(String key, String contentType, byte[] bytes);
 
     /** Size in bytes if the object exists. */
     Optional<Long> sizeOf(String key);

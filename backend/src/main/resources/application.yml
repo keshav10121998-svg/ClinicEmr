@@ -24,7 +24,14 @@ app:
     jwt-secret: ${JWT_SECRET:local-dev-only-secret-change-me-0123456789}
     token-ttl: PT12H
   storage:
-    # Any S3-compatible store. Local: MinIO from docker-compose. Cloud: Oracle Object Storage (see README).
+    # s3: any S3-compatible store (MinIO from docker-compose, or Oracle Object Storage, see README).
+    # local: files on this machine's disk, for development only (the dev server uses this by default).
+    type: ${STORAGE_TYPE:s3}
+    # proxy: uploads go through the backend, which checks file contents; no bucket CORS needed.
+    # direct: browsers PUT to pre-signed URLs (S3 only; the bucket must allow the front-end origin).
+    upload-mode: ${STORAGE_UPLOAD_MODE:proxy}
+    local-dir: ${STORAGE_LOCAL_DIR:target/dev-storage}
+    local-base-url: ${STORAGE_LOCAL_BASE_URL:http://localhost:18080}
     endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
     region: ${STORAGE_REGION:ap-mumbai-1}
     bucket: ${STORAGE_BUCKET:clinic-emr-documents}

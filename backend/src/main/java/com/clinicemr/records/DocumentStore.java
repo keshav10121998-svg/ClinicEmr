@@ -74,7 +74,12 @@ public class DocumentStore {
                 .optional();
     }
 
-    public StartUploadResponse start(long profileId, Origin origin, StartUploadRequest req) {
+    /**
+     * @param pageUploadPath where pages are PUT when uploads go through the backend, e.g.
+     *                       {@code (docId, page) -> "/api/v1/…/documents/" + docId + "/pages/" + page}
+     */
+    public StartUploadResponse start(long profileId, Origin origin, StartUploadRequest req,
+                                     java.util.function.BiFunction<UUID, Integer, String> pageUploadPath) {
         for (FileSpec f : req.files()) {
             if (!ALLOWED_TYPES.containsKey(f.mimeType())) {
                 throw ApiException.badRequest("UNSUPPORTED_FILE_TYPE",
@@ -115,11 +120,53 @@ public class DocumentStore {
                     .param("key", key)
                     .param("mimeType", f.mimeType())
                     .update();
-            targets.add(new UploadTarget(page, "PUT", storage.presignUpload(key, f.mimeType()), f.mimeType()));
+            String url = props.proxyUploads()
+                    ? pageUploadPath.apply(documentId, page)
+                    : storage.presignUpload(key, f.mimeType()).toString();
+            targets.add(new UploadTarget(page, "PUT", url, f.mimeType()));
             page++;
         }
         return new StartUploadResponse(documentId, targets, Instant.now().plus(props.presignTtl()),
                 "PUT each file to its URL with the same Content-Type, then call complete.");
+    }
+
+    /**
+     * Stores one page sent through the backend after checking its size and that its content really is the declared
+     * type. Callers check who may upload to the document first.
+     */
+    public void storePage(DocRow doc, int pageNo, String contentType, java.io.InputStream body) {
+        if (!"UPLOADING".equals(doc.status())) {
+            throw new ApiException(HttpStatus.CONFLICT, "ALREADY_COMPLETED", "This upload was already completed.");
+        }
+        FileRow file = files(doc.id()).stream().filter(f -> f.pageNo() == pageNo).findFirst()
+                .orElseThrow(() -> ApiException.notFound("Page " + pageNo));
+        String declared = contentType == null ? "" : contentType.split(";")[0].trim().toLowerCase(java.util.Locale.ROOT);
+        if (!file.mimeType().equals(declared)) {
+            throw ApiException.badRequest("CONTENT_TYPE_MISMATCH",
+                    "Page " + pageNo + " was announced as " + file.mimeType() + " but sent as " + declared + ".");
+        }
+        byte[] bytes = readLimited(body, props.maxFileBytes());
+        if (bytes.length == 0) {
+            throw ApiException.badRequest("EMPTY_FILE", "Page " + pageNo + " is empty.");
+        }
+        if (!FileSignatures.matches(file.mimeType(), bytes)) {
+            throw ApiException.badRequest("CONTENT_NOT_ALLOWED",
+                    "Page " + pageNo + " isn't a real " + ALLOWED_TYPES.get(file.mimeType()).toUpperCase(java.util.Locale.ROOT) + " file.");
+        }
+        storage.put(file.storageKey(), file.mimeType(), bytes);
+    }
+
+    private static byte[] readLimited(java.io.InputStream in, long max) {
+        try (in) {
+            byte[] bytes = in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max + 1));
+            if (bytes.length > max) {
+                throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
+                        "Each file must be at most " + (max / (1024 * 1024)) + " MB.");
+            }
+            return bytes;
+        } catch (java.io.IOException e) {
+            throw ApiException.badRequest("UPLOAD_INTERRUPTED", "The upload was interrupted. Try again.");
+        }
     }
 
     /**
