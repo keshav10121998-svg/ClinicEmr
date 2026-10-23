@@ -124,6 +124,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Used by spring-boot:test-run: local backend with embedded PostgreSQL -->
+                    <testMainClass>com.clinicemr.DevServer</testMainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>

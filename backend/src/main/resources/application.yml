@@ -14,7 +14,7 @@ spring:
       enabled: true
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:18080}
   error:
     include-message: never
 

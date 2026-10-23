@@ -27,6 +27,22 @@ that follows the patient across clinics once they approve. Design and roadmap:
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
 
+### Clinic web app (`frontend/clinic`)
+
+React + TypeScript + Vite. Screens so far:
+
+- **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
+- **Patients:** one search box for mobile number, name or patient ID; register with age or date of birth and a
+  duplicate warning that offers the existing record.
+- **Patient:** header with allergies in red (or "not asked yet"), active problems, current medicines, latest
+  vitals, allergy editor, visits at this clinic with print links. Front desk sees the header only.
+- **Visit:** complaints, vitals, history, examination, diagnosis and medicine search (doctor's favourites first,
+  free text allowed), dose / frequency / timing / days or long-term per line, tests, advice, follow-up shortcuts,
+  private note. Autosaves about a second after typing stops (Ctrl+S saves now) and shows allergy and duplicate
+  warnings. Templates, repeat last prescription, sign, print A5/A4, and amend with a reason.
+
+The session token is kept in `sessionStorage`, so closing the tab signs out on shared clinic computers.
+
 ### How visits work
 
 - **Draft:** the doctor starts a visit; the doctor (or a nurse) autosaves the whole visit body. Each save sends
@@ -129,7 +145,16 @@ a real SMS provider through the outbox with retries, virus scanning of uploads, 
 
 ## Run locally
 
-Requirements: Java 21, Docker Desktop (for PostgreSQL and MinIO; or point `DB_URL` and `STORAGE_*` at your own).
+Requirements: Java 21, Node 18+. Docker Desktop is optional (PostgreSQL and MinIO).
+
+**Quick start without Docker** (embedded PostgreSQL in `backend/target/dev-db`; document uploads need MinIO or Oracle):
+
+```bash
+cd backend
+./mvnw spring-boot:test-run
+```
+
+**With Docker** (PostgreSQL + MinIO, everything works):
 
 ```bash
 docker compose up -d
@@ -137,20 +162,30 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-- API docs: http://localhost:8080/swagger-ui.html
+**Clinic web app** (proxies `/api` to the backend on :18080):
+
+```bash
+cd frontend/clinic
+npm install
+npm run dev
+```
+
+Open http://localhost:5173, choose **Set up your clinic**, and sign in.
+
+- API docs: http://localhost:18080/swagger-ui.html
 - MinIO console: http://localhost:9001 (minioadmin / minioadmin)
 
 ### Try it
 
 ```bash
-curl -s -X POST localhost:8080/api/v1/clinics -H "Content-Type: application/json" -d '{
+curl -s -X POST localhost:18080/api/v1/clinics -H "Content-Type: application/json" -d '{
   "clinic": {"name": "City Care Clinic", "city": "Bengaluru", "state": "Karnataka", "pincode": "560038"},
   "admin":  {"name": "Dr. Asha Mehta", "email": "asha@example.com", "password": "change-me-please",
              "doctor": {"registrationNo": "KMC-12345", "registrationCouncil": "Karnataka Medical Council",
                         "qualifications": "MBBS, MD (General Medicine)"}}
 }'
 
-curl -s -X POST localhost:8080/api/v1/auth/staff/login -H "Content-Type: application/json" \
+curl -s -X POST localhost:18080/api/v1/auth/staff/login -H "Content-Type: application/json" \
   -d '{"email": "asha@example.com", "password": "change-me-please"}'
 ```
 
@@ -199,4 +234,4 @@ depend on it.
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | `jdbc:postgresql://localhost:5432/clinic_emr`, `clinic`, `clinic` |
 | `JWT_SECRET` | dev-only value; **must** be set to a random 32+ byte secret everywhere else |
 | `STORAGE_*` | MinIO from docker-compose |
-| `PORT` | `8080` |
+| `PORT` | `18080` |

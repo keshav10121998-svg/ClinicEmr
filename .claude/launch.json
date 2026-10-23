@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "mvnw.cmd", "-q", "spring-boot:test-run"],
+      "port": 18080,
+      "cwd": "backend"
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "dev"],
+      "port": 5173,
+      "cwd": "frontend/clinic"
+    }
+  ]
+}
