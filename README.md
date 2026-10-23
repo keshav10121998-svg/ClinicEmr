@@ -41,7 +41,22 @@ React + TypeScript + Vite. Screens so far:
   private note. Autosaves about a second after typing stops (Ctrl+S saves now) and shows allergy and duplicate
   warnings. Templates, repeat last prescription, sign, print A5/A4, and amend with a reason.
 
+- **Staff** (admins): list staff and add doctors (with registration details), nurses, front desk and admins.
+  Someone who already uses ClinicEMR at another clinic joins by email and keeps their sign-in.
+- **Records from other clinics:**
+  - From **Patients**, a phone search with no match offers *Ask patient to share records*; from a patient's page,
+    *Ask patient to share*.
+  - The patient reads out the SMS code (or approves in the app, which the screen picks up automatically).
+  - Staff then choose the person on that number, what to share (visits / documents), for how long, an optional
+    start date, and for doctors *only me*. A person new to the clinic gets a patient number here.
+  - The patient page then shows how long sharing lasts, allergies recorded elsewhere, other clinics' visits
+    (expandable, no private notes) and documents. Front desk can request but not view.
+- Prescribing warnings at the new clinic include allergies recorded at other clinics while visits are shared.
+
 The session token is kept in `sessionStorage`, so closing the tab signs out on shared clinic computers.
+
+**Trying the sharing flow locally:** with no SMS provider configured, codes are written to the backend log
+(`backend/target/dev-server.log` when started as in the run instructions, look for `[DEV SMS`).
 
 ### How visits work
 

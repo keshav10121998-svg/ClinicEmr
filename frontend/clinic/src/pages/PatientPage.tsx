@@ -5,6 +5,7 @@ import { useSession } from '../session';
 import type { EncounterListItem, Encounter, Patient, PatientSummary } from '../types';
 import { AllergyEditor, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { dateTime } from '../format';
+import { SharedHistoryPanel } from '../components/SharedHistoryPanel';
 
 export function PatientPage() {
   const { patientId } = useParams();
@@ -66,6 +67,8 @@ export function PatientPage() {
       {!clinical && (
         <div className="alert info">Visit records are visible to doctors and nurses.</div>
       )}
+
+      <SharedHistoryPanel patientId={patientId!} />
 
       {clinical && summary && (
         <div className="grid-2">

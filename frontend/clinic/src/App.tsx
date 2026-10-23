@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterClinicPage } from './pages/RegisterClinicPage';
@@ -6,9 +6,10 @@ import { ChooseClinicPage } from './pages/ChooseClinicPage';
 import { PatientsPage } from './pages/PatientsPage';
 import { PatientPage } from './pages/PatientPage';
 import { VisitPage } from './pages/VisitPage';
+import { StaffPage } from './pages/StaffPage';
 
 export function App() {
-  const { session, clinic } = useSession();
+  const { session, clinic, has } = useSession();
 
   if (!session) {
     return (
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/patients/:patientId" element={<PatientPage />} />
           <Route path="/visits/:visitId" element={<VisitPage />} />
+          <Route path="/staff" element={has('ADMIN') ? <StaffPage /> : <Navigate to="/patients" replace />} />
           <Route path="*" element={<Navigate to="/patients" replace />} />
         </Routes>
       </main>
@@ -38,12 +40,14 @@ export function App() {
 }
 
 function TopBar() {
-  const { session, clinic, logout, chooseClinic } = useSession();
+  const { session, clinic, logout, chooseClinic, has } = useSession();
+  const navigate = useNavigate();
   return (
     <header className="topbar">
       <a className="brand" href="/patients">ClinicEMR</a>
       <nav>
         <NavLink to="/patients">Patients</NavLink>
+        {has('ADMIN') && <NavLink to="/staff">Staff</NavLink>}
       </nav>
       <span className="spacer" />
       {session!.clinics.length > 1 ? (
@@ -61,7 +65,7 @@ function TopBar() {
         <span className="who">{clinic!.clinicName}</span>
       )}
       <span className="who">{session!.name} · {clinic!.roles.map(roleLabel).join(', ')}</span>
-      <button className="link" onClick={logout}>Sign out</button>
+      <button className="link" onClick={() => { logout(); navigate('/', { replace: true }); }}>Sign out</button>
     </header>
   );
 }

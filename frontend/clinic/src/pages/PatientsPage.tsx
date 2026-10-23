@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { DuplicateCandidate, Patient } from '../types';
 import { ageSex } from '../format';
+import { AccessRequestFlow } from '../components/AccessRequestFlow';
 
 /** Front desk home: find a patient by phone, name or patient ID, or register a new one. */
 export function PatientsPage() {
@@ -12,6 +13,8 @@ export function PatientsPage() {
   const [searchError, setSearchError] = useState<string>();
   const [searching, setSearching] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [searchedPhone, setSearchedPhone] = useState<string>();
+  const [asking, setAsking] = useState(false);
 
   async function search(e: FormEvent) {
     e.preventDefault();
@@ -19,9 +22,11 @@ export function PatientsPage() {
     if (q.length < 2) return;
     setSearching(true);
     setSearchError(undefined);
+    setAsking(false);
     try {
       const digits = q.replace(/\D/g, '');
       const looksLikePhone = digits.length >= 10 && digits.length >= q.replace(/\s/g, '').length - 1;
+      setSearchedPhone(looksLikePhone ? q : undefined);
       setResults(looksLikePhone
         ? await api.post<Patient[]>('/clinic/patients/search-by-phone', { phone: q })
         : await api.get<Patient[]>(`/clinic/patients?q=${encodeURIComponent(q)}`));
@@ -61,6 +66,11 @@ export function PatientsPage() {
           <div className="alert info">
             No patient at this clinic matches. Register them, or if they've visited another clinic on ClinicEMR,
             ask them to approve sharing their records.
+            {searchedPhone && !asking && (
+              <div style={{ marginTop: 8 }}>
+                <button type="button" onClick={() => setAsking(true)}>Ask patient to share records</button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="table-wrap">
@@ -84,6 +94,11 @@ export function PatientsPage() {
           </div>
         ))}
       </form>
+
+      {asking && searchedPhone && (
+        <AccessRequestFlow phone={searchedPhone} onCancel={() => setAsking(false)}
+                           onGranted={(g) => navigate(`/patients/${g.profileId}`)} />
+      )}
     </>
   );
 }

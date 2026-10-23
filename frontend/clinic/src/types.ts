@@ -197,6 +197,66 @@ export interface Template {
   useCount: number;
 }
 
+export interface StaffMember {
+  staffId: number;
+  name: string;
+  email: string;
+  roles: Role[];
+  doctor?: { registrationNo: string; registrationCouncil: string; qualifications: string; specialty?: string };
+}
+
+export interface SharedProfile {
+  profileId: string;
+  name: string;
+  gender: string;
+  ageYears?: number;
+  linkedToThisClinic: boolean;
+  mrn?: string;
+}
+
+export interface GrantView {
+  grantId: string;
+  profileId: string;
+  patientName: string;
+  clinicId: number;
+  clinicName: string;
+  doctorName?: string;
+  scopeTypes: ('VISITS' | 'DOCUMENTS')[];
+  fromDate?: string;
+  expiresAt: string;
+  createdAt: string;
+  method: 'OTP' | 'APP';
+  mrn?: string;
+}
+
+export interface AccessRequestView {
+  requestId: string;
+  phone: string;
+  status: 'PENDING' | 'VERIFIED' | 'APPROVED' | 'DENIED' | 'LOCKED';
+  expiresAt: string;
+  profiles: SharedProfile[];
+  grants: GrantView[];
+  next: string;
+}
+
+export interface SharedEncounter {
+  encounterId: string;
+  clinicName: string;
+  doctorName: string;
+  date: string;
+  version: number;
+  content: EncounterContent;
+}
+
+export interface SharedHistory {
+  scope: string[];
+  fromDate?: string;
+  encounters: SharedEncounter[];
+  allergies: { clinicName: string; substance: string; reaction?: string; severity?: string; recordedAt: string }[];
+  documents: { id: string; source: 'CLINIC' | 'PATIENT'; clinicName?: string; docType: string; title?: string;
+               recordDate?: string; verified: boolean; pages: number }[];
+}
+
 export interface Problem {
   status: number;
   code?: string;
