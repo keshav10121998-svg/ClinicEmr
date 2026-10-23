@@ -6,6 +6,7 @@ import type { EncounterListItem, Encounter, Patient, PatientSummary } from '../t
 import { AllergyEditor, LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { dateTime } from '../format';
 import { SharedHistoryPanel } from '../components/SharedHistoryPanel';
+import { AttachedFiles } from '../components/AttachedFiles';
 
 export function PatientPage() {
   const { patientId } = useParams();
@@ -80,6 +81,7 @@ export function PatientPage() {
             <AllergyEditor patientId={patientId!} allergies={summary.allergies}
                            onChange={(a) => setSummary({ ...summary, allergies: a })} />
           </div>
+          <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
           <div className="card" style={{ alignContent: 'start' }}>
             <h2>Visit history at this clinic</h2>
             {visits.length === 0 ? <p className="muted">No visits yet.</p> : (
@@ -103,6 +105,10 @@ export function PatientPage() {
                 </table>
               </div>
             )}
+          </div>
+          <div className="card">
+            <AttachedFiles patientId={patientId!} canAttach title="Reports and files" />
+          </div>
           </div>
         </div>
       )}

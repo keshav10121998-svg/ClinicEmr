@@ -90,3 +90,30 @@ export async function openPdf(path: string) {
     throw e;
   }
 }
+
+/**
+ * Sends a file's bytes with PUT. A relative upload URL is this backend and gets the usual auth headers; an absolute
+ * one is a pre-signed storage URL and gets only the Content-Type.
+ */
+export async function putFile(url: string, file: Blob, contentType: string) {
+  const relative = url.startsWith('/');
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'PUT',
+      headers: relative ? { ...(headers(false) as Record<string, string>), 'Content-Type': contentType } : { 'Content-Type': contentType },
+      body: file,
+    });
+  } catch {
+    throw new ApiError({ status: 0, code: 'NETWORK', detail: "Can't reach the server. Check your connection." });
+  }
+  if (!res.ok) {
+    let problem: Problem = { status: res.status, detail: "The file couldn't be uploaded." };
+    try {
+      problem = { ...problem, ...(await res.json()), status: res.status };
+    } catch {
+      // not JSON
+    }
+    throw new ApiError(problem);
+  }
+}

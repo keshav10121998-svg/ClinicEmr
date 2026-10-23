@@ -1,110 +1,109 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { DuplicateCandidate, Patient } from '../types';
-import { ageSex } from '../format';
+import { ageSex, date } from '../format';
 import { AccessRequestFlow } from '../components/AccessRequestFlow';
 
-/** Front desk home: find a patient by phone, name or patient ID, or register a new one. */
+interface RecentPatient {
+  publicId: string;
+  mrn: string;
+  name: string;
+  gender: Patient['gender'];
+  dobEstimated: boolean;
+  ageYears?: number;
+  phone?: string;
+  lastVisitAt?: string;
+  registeredAt: string;
+}
+
+/** Home screen: the clinic's patients, most recently seen first. Tap one to open; typing only narrows the list. */
 export function PatientsPage() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Patient[]>();
-  const [searchError, setSearchError] = useState<string>();
-  const [searching, setSearching] = useState(false);
+  const [patients, setPatients] = useState<RecentPatient[]>();
+  const [error, setError] = useState<string>();
+  const [filter, setFilter] = useState('');
   const [showRegister, setShowRegister] = useState(false);
-  const [searchedPhone, setSearchedPhone] = useState<string>();
   const [asking, setAsking] = useState(false);
 
-  async function search(e: FormEvent) {
-    e.preventDefault();
-    const q = query.trim();
-    if (q.length < 2) return;
-    setSearching(true);
-    setSearchError(undefined);
-    setAsking(false);
-    try {
-      const digits = q.replace(/\D/g, '');
-      const looksLikePhone = digits.length >= 10 && digits.length >= q.replace(/\s/g, '').length - 1;
-      setSearchedPhone(looksLikePhone ? q : undefined);
-      setResults(looksLikePhone
-        ? await api.post<Patient[]>('/clinic/patients/search-by-phone', { phone: q })
-        : await api.get<Patient[]>(`/clinic/patients?q=${encodeURIComponent(q)}`));
-    } catch (err) {
-      setSearchError(err instanceof ApiError ? err.message : 'Search failed.');
-    } finally {
-      setSearching(false);
-    }
-  }
+  useEffect(() => {
+    api.get<RecentPatient[]>('/clinic/patients/recent?limit=300')
+      .then(setPatients)
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load patients.'));
+  }, []);
+
+  const shown = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!patients || !q) return patients;
+    const digits = q.replace(/\D/g, '');
+    return patients.filter((p) =>
+      p.name.toLowerCase().includes(q)
+      || p.mrn.toLowerCase().includes(q)
+      || (digits.length >= 3 && (p.phone ?? '').replace(/\D/g, '').includes(digits)));
+  }, [patients, filter]);
+
+  const filterIsPhone = filter.replace(/\D/g, '').length >= 10;
 
   return (
     <>
       <div className="between">
         <h1>Patients</h1>
         <button className="primary" onClick={() => setShowRegister((s) => !s)}>
-          {showRegister ? 'Close' : 'Register new patient'}
+          {showRegister ? 'Close' : '+ New patient'}
         </button>
       </div>
 
       {showRegister && (
         <RegisterPatient
-          initialPhone={/^\+?[\d\s-]{10,}$/.test(query.trim()) ? query.trim() : ''}
+          initialPhone={filterIsPhone ? filter.trim() : ''}
+          initialName={!filterIsPhone && /[a-z]/i.test(filter) ? filter.trim() : ''}
           onDone={(p) => navigate(`/patients/${p.publicId}`)}
         />
       )}
 
-      <form className="card" onSubmit={search}>
-        <label className="field">Find a patient by mobile number, name or patient ID
-          <div className="row" style={{ flexWrap: 'nowrap' }}>
-            <input id="patientSearch" autoFocus placeholder="98765 43210, Kamla, P000123" value={query}
-                   onChange={(e) => setQuery(e.target.value)} />
-            <button className="primary" disabled={searching || query.trim().length < 2}>Search</button>
-          </div>
-        </label>
-        {searchError && <div className="alert error">{searchError}</div>}
-        {results && (results.length === 0 ? (
+      <div className="card">
+        <input id="patientFilter" aria-label="Type to narrow the list" placeholder="Type a name, mobile number or patient ID to narrow the list"
+               value={filter} onChange={(e) => { setFilter(e.target.value); setAsking(false); }} />
+        {error && <div className="alert error">{error}</div>}
+        {!patients && !error && <p className="muted">Loading…</p>}
+        {patients?.length === 0 && (
+          <div className="alert info">No patients yet. Tap <b>+ New patient</b> to register the first one.</div>
+        )}
+        {shown && shown.length === 0 && patients && patients.length > 0 && (
           <div className="alert info">
-            No patient at this clinic matches. Register them, or if they've visited another clinic on ClinicEMR,
-            ask them to approve sharing their records.
-            {searchedPhone && !asking && (
-              <div style={{ marginTop: 8 }}>
-                <button type="button" onClick={() => setAsking(true)}>Ask patient to share records</button>
-              </div>
-            )}
+            No patient here matches “{filter.trim()}”.
+            <div className="row" style={{ marginTop: 8 }}>
+              <button type="button" onClick={() => setShowRegister(true)}>+ Register as new patient</button>
+              {filterIsPhone && !asking && (
+                <button type="button" onClick={() => setAsking(true)}>Visited another clinic? Ask to share records</button>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Name</th><th>Age / sex</th><th>Patient ID</th><th>Mobile</th></tr>
-              </thead>
-              <tbody>
-                {results.map((p) => (
-                  <tr key={p.publicId} className="clickable" tabIndex={0}
-                      onClick={() => navigate(`/patients/${p.publicId}`)}
-                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/patients/${p.publicId}`)}>
-                    <td><b>{p.name}</b></td>
-                    <td>{ageSex(p)}</td>
-                    <td className="mono">{p.mrn}</td>
-                    <td className="mono">{p.phone}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </form>
+        )}
+        <div className="patient-list">
+          {shown?.map((p) => (
+            <button key={p.publicId} className="patient-row" onClick={() => navigate(`/patients/${p.publicId}`)}>
+              <span className="patient-name">{p.name}</span>
+              <span className="muted small">{ageSex(p)} · <span className="mono">{p.mrn}</span>{p.phone ? ` · ${p.phone.replace(/^\+91/, '')}` : ''}</span>
+              <span className="small last-visit">{p.lastVisitAt ? `Last visit ${date(p.lastVisitAt)}` : 'No visits yet'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {asking && searchedPhone && (
-        <AccessRequestFlow phone={searchedPhone} onCancel={() => setAsking(false)}
+      {asking && filterIsPhone && (
+        <AccessRequestFlow phone={filter.trim()} onCancel={() => setAsking(false)}
                            onGranted={(g) => navigate(`/patients/${g.profileId}`)} />
       )}
     </>
   );
 }
 
-function RegisterPatient({ initialPhone, onDone }: { initialPhone: string; onDone: (p: Patient) => void }) {
-  const [f, setF] = useState({ name: '', gender: '', ageYears: '', dob: '', phone: initialPhone, abhaNumber: '', bloodGroup: '' });
+/** Short form: name, sex, age and mobile. Date of birth, ABHA and blood group are under "More". */
+function RegisterPatient({ initialPhone, initialName, onDone }:
+  { initialPhone: string; initialName: string; onDone: (p: Patient) => void }) {
+  const [f, setF] = useState({ name: initialName, gender: '', ageYears: '', dob: '', phone: initialPhone, abhaNumber: '', bloodGroup: '' });
+  const [more, setMore] = useState(false);
   const [error, setError] = useState<ApiError>();
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>();
   const [busy, setBusy] = useState(false);
@@ -141,7 +140,7 @@ function RegisterPatient({ initialPhone, onDone }: { initialPhone: string; onDon
 
   return (
     <form className="card" onSubmit={(e) => { e.preventDefault(); submit(false); }}>
-      <h2>Register new patient</h2>
+      <h2>New patient</h2>
       {error && (
         <div className="alert error">
           {error.message}
@@ -149,36 +148,42 @@ function RegisterPatient({ initialPhone, onDone }: { initialPhone: string; onDon
         </div>
       )}
       <div className="fields">
-        <label className="field" style={{ gridColumn: 'span 2' }}>Full name
+        <label className="field" style={{ gridColumn: '1 / -1' }}>Full name
           <input id="regName" required autoFocus value={f.name} onChange={set('name')} />
         </label>
-        <label className="field">Sex
-          <select id="regGender" required value={f.gender} onChange={set('gender')}>
-            <option value="">Choose</option>
-            <option value="F">Female</option>
-            <option value="M">Male</option>
-            <option value="O">Other</option>
-          </select>
-        </label>
+        <div className="field" role="radiogroup" aria-label="Sex">
+          Sex
+          <div className="segmented">
+            {[['F', 'Female'], ['M', 'Male'], ['O', 'Other']].map(([v, l]) => (
+              <button type="button" key={v} aria-pressed={f.gender === v} onClick={() => setF({ ...f, gender: v })}>{l}</button>
+            ))}
+          </div>
+        </div>
         <label className="field">Age (years)
-          <input id="regAge" type="number" min={0} max={130} value={f.ageYears} onChange={set('ageYears')} disabled={!!f.dob} />
-        </label>
-        <label className="field">or date of birth
-          <input id="regDob" type="date" value={f.dob} onChange={set('dob')} max={new Date().toISOString().slice(0, 10)} />
+          <input id="regAge" type="number" inputMode="numeric" min={0} max={130} value={f.ageYears} onChange={set('ageYears')} disabled={!!f.dob} />
         </label>
         <label className="field">Mobile number
-          <input id="regPhone" type="tel" required value={f.phone} onChange={set('phone')} placeholder="98765 43210" />
-        </label>
-        <label className="field">ABHA number (optional)
-          <input id="regAbha" value={f.abhaNumber} onChange={set('abhaNumber')} placeholder="14 digits" />
-        </label>
-        <label className="field">Blood group
-          <select id="regBlood" value={f.bloodGroup} onChange={set('bloodGroup')}>
-            <option value="">Unknown</option>
-            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b}>{b}</option>)}
-          </select>
+          <input id="regPhone" type="tel" inputMode="tel" required value={f.phone} onChange={set('phone')} placeholder="98765 43210" />
         </label>
       </div>
+      {more ? (
+        <div className="fields">
+          <label className="field">Date of birth (instead of age)
+            <input id="regDob" type="date" value={f.dob} onChange={set('dob')} max={new Date().toISOString().slice(0, 10)} />
+          </label>
+          <label className="field">ABHA number
+            <input id="regAbha" value={f.abhaNumber} onChange={set('abhaNumber')} placeholder="14 digits" />
+          </label>
+          <label className="field">Blood group
+            <select id="regBlood" value={f.bloodGroup} onChange={set('bloodGroup')}>
+              <option value="">Unknown</option>
+              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b}>{b}</option>)}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <button type="button" className="link" style={{ justifySelf: 'start' }} onClick={() => setMore(true)}>+ Date of birth, ABHA, blood group</button>
+      )}
 
       {duplicates && (
         <div className="alert warn">
@@ -194,9 +199,7 @@ function RegisterPatient({ initialPhone, onDone }: { initialPhone: string; onDon
         </div>
       )}
 
-      <div className="row end">
-        <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Register'}</button>
-      </div>
+      <button className="primary block" disabled={busy || !f.gender}>{busy ? 'Saving…' : 'Register'}</button>
     </form>
   );
 }

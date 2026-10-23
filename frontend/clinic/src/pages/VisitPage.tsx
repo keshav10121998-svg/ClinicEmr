@@ -6,17 +6,22 @@ import type {
   DiagnosisEntry, DiagnosisOption, DrugOption, Encounter, EncounterContent, Favourite, PatientSummary, RxItem,
   Template, Vitals,
 } from '../types';
-import { Typeahead, type Option } from '../components/Typeahead';
 import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
+import { AttachedFiles } from '../components/AttachedFiles';
 import { addDays, date, dateTime, todayIst } from '../format';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'conflict' | 'error';
 
-const FREQUENCIES = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', '1-1-1-1', 'SOS', 'HS', 'Once a week'];
-const TIMINGS = ['', 'after food', 'before food', 'empty stomach', 'at bedtime', 'with food'];
+const FREQUENCIES = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', '1-1-1-1', 'SOS', 'At bedtime', 'Once a week'];
+const TIMINGS = ['', 'after food', 'before food', 'empty stomach', 'at bedtime'];
+const DAYS = [1, 2, 3, 5, 7, 10, 14, 21, 30, 60, 90];
 
 const emptyContent = (): EncounterContent => ({ diagnoses: [], prescription: [], investigations: [] });
 
+/**
+ * One visit on one screen. The short form holds what most visits need; everything is optional. Rarely used
+ * sections sit under "More details". Drafts save themselves about a second after typing stops.
+ */
 export function VisitPage() {
   const { visitId } = useParams();
   const navigate = useNavigate();
@@ -29,6 +34,8 @@ export function VisitPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [amending, setAmending] = useState(false);
   const [amendReason, setAmendReason] = useState('');
+  const [diagnosisOptions, setDiagnosisOptions] = useState<DiagnosisOption[]>([]);
+  const [drugOptions, setDrugOptions] = useState<RxItem[]>([]);
 
   // Refs drive autosave so typing never waits for the network
   const contentRef = useRef(content);
@@ -63,6 +70,34 @@ export function VisitPage() {
     return () => { cancelled = true; };
   }, [visitId, has]);
 
+  // Suggestions for the diagnosis and medicine boxes: the doctor's own favourites first, then the common list
+  useEffect(() => {
+    Promise.all([
+      api.get<Favourite<DiagnosisEntry>[]>('/me/favourites?kind=DIAGNOSIS').catch(() => []),
+      api.get<DiagnosisOption[]>('/terminology/diagnoses/all').catch(() => []),
+    ]).then(([favs, all]) => {
+      const seen = new Set<string>();
+      const list: DiagnosisOption[] = [];
+      for (const f of favs) {
+        if (!seen.has(f.entry.display)) { seen.add(f.entry.display); list.push({ codeSystem: f.entry.codeSystem ?? 'ICD10', code: f.entry.code ?? '', display: f.entry.display }); }
+      }
+      for (const d of all) if (!seen.has(d.display)) { seen.add(d.display); list.push(d); }
+      setDiagnosisOptions(list);
+    });
+    Promise.all([
+      api.get<Favourite<RxItem>[]>('/me/favourites?kind=DRUG').catch(() => []),
+      api.get<DrugOption[]>('/terminology/drugs/all').catch(() => []),
+    ]).then(([favs, all]) => {
+      const seen = new Set<string>();
+      const list: RxItem[] = [];
+      for (const f of favs) if (!seen.has(f.entry.drugDisplay)) { seen.add(f.entry.drugDisplay); list.push(f.entry); }
+      for (const d of all) {
+        if (!seen.has(d.display)) { seen.add(d.display); list.push({ drugId: d.id, drugDisplay: d.display, genericName: d.genericName }); }
+      }
+      setDrugOptions(list);
+    });
+  }, []);
+
   const save = useCallback(async () => {
     if (savingRef.current) {
       await savingRef.current;
@@ -92,7 +127,7 @@ export function VisitPage() {
     await save();
   }, [save]);
 
-  // Save on Ctrl+S, and before leaving the page
+  // Save on Ctrl+S, and warn before leaving with unsaved changes
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -135,7 +170,6 @@ export function VisitPage() {
       api.get<PatientSummary>(`/clinic/patients/${res.patientId}/summary`).then(setSummary).catch(() => {});
     } catch (err) {
       setError(err instanceof ApiError ? err : undefined);
-      // The Sign button is at the bottom; bring the list of problems into view
       requestAnimationFrame(() => document.querySelector('.alert.error')?.scrollIntoView({ block: 'center' }));
     }
   }
@@ -184,52 +218,13 @@ export function VisitPage() {
     }
   }
 
-  const loadDiagnoses = useCallback(async (q: string): Promise<Option<DiagnosisEntry>[]> => {
-    const [favs, terms] = await Promise.all([
-      api.get<Favourite<DiagnosisEntry>[]>(`/me/favourites?kind=DIAGNOSIS&q=${encodeURIComponent(q)}`).catch(() => []),
-      api.get<DiagnosisOption[]>(`/terminology/diagnoses?q=${encodeURIComponent(q)}`),
-    ]);
-    const seen = new Set<string>();
-    const out: Option<DiagnosisEntry>[] = [];
-    for (const f of favs.slice(0, 5)) {
-      seen.add(f.entry.code ?? f.entry.display);
-      out.push({ key: 'f' + f.ref, label: f.entry.display, tag: `${f.entry.code ?? ''} ★`, value: { ...f.entry, kind: undefined } });
-    }
-    for (const t of terms) {
-      if (seen.has(t.code)) continue;
-      out.push({ key: 't' + t.code, label: t.display, tag: t.code, value: { codeSystem: t.codeSystem, code: t.code, display: t.display } });
-    }
-    return out;
-  }, []);
-
-  const loadDrugs = useCallback(async (q: string): Promise<Option<RxItem>[]> => {
-    const [favs, drugs] = await Promise.all([
-      api.get<Favourite<RxItem>[]>(`/me/favourites?kind=DRUG&q=${encodeURIComponent(q)}`).catch(() => []),
-      api.get<DrugOption[]>(`/terminology/drugs?q=${encodeURIComponent(q)}`),
-    ]);
-    const seen = new Set<string>();
-    const out: Option<RxItem>[] = [];
-    for (const f of favs.slice(0, 5)) {
-      seen.add(f.entry.drugDisplay.toLowerCase());
-      out.push({ key: 'f' + f.ref, label: f.entry.drugDisplay,
-                 tag: [f.entry.frequency, f.entry.longTerm ? 'long-term' : f.entry.durationDays ? `${f.entry.durationDays}d` : '', '★'].filter(Boolean).join(' · '),
-                 value: f.entry });
-    }
-    for (const d of drugs) {
-      if (seen.has(d.display.toLowerCase())) continue;
-      out.push({ key: 'd' + d.id, label: d.display, tag: d.form,
-                 value: { drugId: d.id, drugDisplay: d.display, genericName: d.genericName, dose: '', frequency: '', timing: 'after food' } });
-    }
-    return out;
-  }, []);
-
   if (!encounter || !summary) {
     return error ? <div className="alert error">{error.message}</div> : <p className="muted">Loading…</p>;
   }
 
   const signed = encounter.status === 'SIGNED';
   const fieldErrors = error?.problem.fields as Record<string, string> | undefined;
-  const set = (k: keyof EncounterContent) => (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+  const set = (k: keyof EncounterContent) => (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
     update((c) => ({ ...c, [k]: e.target.value || undefined }));
   const setVital = (k: keyof Vitals) => (e: React.ChangeEvent<HTMLInputElement>) =>
     update((c) => ({ ...c, vitals: { ...c.vitals, [k]: e.target.value === '' ? undefined : Number(e.target.value) } }));
@@ -242,7 +237,7 @@ export function VisitPage() {
         </button>
         <div className="row">
           <span className="chip status">{signed ? `Signed${encounter.currentVersion > 1 ? ` · v${encounter.currentVersion}` : ''}` : encounter.status === 'DRAFT' ? 'Draft' : 'Cancelled'}</span>
-          <span className="muted small">Dr. {encounter.doctor.name.replace(/^Dr\.?\s*/i, '')} · {dateTime(encounter.startedAt)}</span>
+          <span className="muted small">{dateTime(encounter.startedAt)}</span>
         </div>
       </div>
 
@@ -276,136 +271,120 @@ export function VisitPage() {
         ) : (
           <section className="card" aria-label="Visit">
             <div className="between">
-              <h2>{amending ? `Amend visit (will become version ${encounter.currentVersion + 1})` : 'Visit notes'}</h2>
+              <h2>{amending ? `Correct this visit (becomes version ${encounter.currentVersion + 1})` : 'Visit'}</h2>
               {!amending && editingDraft && (
-                <div className="row">
-                  {templates.length > 0 && (
-                    <select id="template" aria-label="Apply template" value="" onChange={(e) => applyTemplate(e.target.value)} style={{ width: 'auto' }}>
-                      <option value="">Apply template…</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  )}
-                  <span className={`save-state ${saveState === 'error' || saveState === 'conflict' ? 'bad' : ''}`}>
-                    {{ saved: 'All changes saved', saving: 'Saving…', unsaved: 'Unsaved changes', conflict: 'Not saved', error: 'Not saved, retrying on next change' }[saveState]}
-                  </span>
-                </div>
+                <span className={`save-state ${saveState === 'error' || saveState === 'conflict' ? 'bad' : ''}`}>
+                  {{ saved: 'Saved', saving: 'Saving…', unsaved: 'Saving soon…', conflict: 'Not saved', error: 'Not saved, will retry' }[saveState]}
+                </span>
               )}
             </div>
 
             <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 14 }}>
               <label className="field">Complaints
-                <textarea id="complaints" rows={2} value={content.chiefComplaints ?? ''} onChange={set('chiefComplaints')} autoFocus />
+                <textarea id="complaints" rows={2} value={content.chiefComplaints ?? ''} onChange={set('chiefComplaints')}
+                          placeholder="e.g. Fever 3 days, cough" autoFocus />
               </label>
 
-              <div>
-                <h3>Vitals</h3>
-                <div className="fields" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
-                  <VitalInput id="bpSys" label="BP systolic" value={content.vitals?.bpSystolic} onChange={setVital('bpSystolic')} />
-                  <VitalInput id="bpDia" label="BP diastolic" value={content.vitals?.bpDiastolic} onChange={setVital('bpDiastolic')} />
-                  <VitalInput id="pulse" label="Pulse /min" value={content.vitals?.pulse} onChange={setVital('pulse')} />
-                  <VitalInput id="temp" label="Temp °F" step="0.1" value={content.vitals?.temperatureF} onChange={setVital('temperatureF')} />
-                  <VitalInput id="spo2" label="SpO2 %" value={content.vitals?.spo2} onChange={setVital('spo2')} />
-                  <VitalInput id="weight" label="Weight kg" step="0.1" value={content.vitals?.weightKg} onChange={setVital('weightKg')} />
-                  <VitalInput id="rbs" label="RBS mg/dL" value={content.vitals?.bloodGlucoseMgDl} onChange={setVital('bloodGlucoseMgDl')} />
-                </div>
-              </div>
+              <DiagnosisField content={content} options={diagnosisOptions} onChange={(diagnoses) => update((c) => ({ ...c, diagnoses }))} />
 
-              <label className="field">History
-                <textarea id="history" rows={2} value={content.historyOfPresentIllness ?? ''} onChange={set('historyOfPresentIllness')} />
-              </label>
-              <label className="field">Examination
-                <textarea id="exam" rows={2} value={content.examination ?? ''} onChange={set('examination')} />
-              </label>
-
-              <div style={{ display: 'grid', gap: 8 }}>
-                <h3>Diagnosis</h3>
-                {content.diagnoses.map((d, i) => (
-                  <div key={i} className="dx-line">
-                    <span className="dx-wide">{d.display} {d.code && <span className="muted mono small">({d.code})</span>}</span>
-                    <select aria-label="Diagnosis type" value={d.kind ?? 'PRIMARY'} className="dx-wide"
-                            onChange={(e) => update((c) => ({ ...c, diagnoses: c.diagnoses.map((x, j) => j === i ? { ...x, kind: e.target.value as DiagnosisEntry['kind'] } : x) }))}>
-                      <option value="PRIMARY">Primary</option>
-                      <option value="SECONDARY">Secondary</option>
-                      <option value="PROVISIONAL">Provisional</option>
-                    </select>
-                    <label className="check dx-wide"><input type="checkbox" checked={!!d.chronic}
-                      onChange={(e) => update((c) => ({ ...c, diagnoses: c.diagnoses.map((x, j) => j === i ? { ...x, chronic: e.target.checked } : x) }))} /> Chronic</label>
-                    <button type="button" className="link danger" aria-label={`Remove ${d.display}`}
-                            onClick={() => update((c) => ({ ...c, diagnoses: c.diagnoses.filter((_, j) => j !== i) }))}>✕</button>
-                  </div>
-                ))}
-                {editable && (
-                  <Typeahead id="dxSearch" placeholder="Search diagnosis (e.g. fever, J02, sugar) and press Enter"
-                    load={loadDiagnoses}
-                    onSelect={(d) => update((c) => ({ ...c, diagnoses: [...c.diagnoses, { ...d, kind: c.diagnoses.length ? 'SECONDARY' : 'PRIMARY' }] }))}
-                    onFreeText={(t) => update((c) => ({ ...c, diagnoses: [...c.diagnoses, { display: t, kind: c.diagnoses.length ? 'SECONDARY' : 'PRIMARY' }] }))} />
-                )}
-              </div>
-
-              <label className="field">Treatment given (optional: injection, dressing, nebulisation, procedure…)
-                <textarea id="treatment" rows={2} value={content.treatmentGiven ?? ''} onChange={set('treatmentGiven')} />
+              <label className="field">Treatment given
+                <textarea id="treatment" rows={2} value={content.treatmentGiven ?? ''} onChange={set('treatmentGiven')}
+                          placeholder="e.g. Injection, dressing, nebulisation" />
               </label>
 
               <div style={{ display: 'grid', gap: 8 }}>
                 <div className="section-title">
-                  <h3>Rx (optional)</h3>
-                  {editingDraft && !amending && <button type="button" className="link" onClick={repeatLastPrescription}>Repeat last prescription</button>}
+                  <h3>Medicines</h3>
+                  {editingDraft && !amending && summary.lastVisit && (
+                    <button type="button" className="link small" onClick={repeatLastPrescription}>Same as last time</button>
+                  )}
                 </div>
                 {(encounter.warnings ?? []).map((w, i) => (
                   <div key={i} className={`alert ${w.type === 'ALLERGY' ? 'error' : 'warn'}`} role="alert">{w.message}</div>
                 ))}
                 {content.prescription.map((r, i) => (
-                  <RxRow key={i} n={i + 1} item={r}
-                    onChange={(next) => update((c) => ({ ...c, prescription: c.prescription.map((x, j) => j === i ? next : x) }))}
+                  <MedicineRow key={i} n={i + 1} item={r} options={drugOptions}
+                    onChange={(next) => update((c) => ({ ...c, prescription: c.prescription.map((x, j) => (j === i ? next : x)) }))}
                     onRemove={() => update((c) => ({ ...c, prescription: c.prescription.filter((_, j) => j !== i) }))} />
                 ))}
                 {editable && (
-                  <Typeahead id="drugSearch" placeholder="Add medicine (e.g. parac, metf) and press Enter"
-                    load={loadDrugs}
-                    onSelect={(r) => update((c) => ({ ...c, prescription: [...c.prescription, r] }))}
-                    onFreeText={(t) => update((c) => ({ ...c, prescription: [...c.prescription, { drugDisplay: t, frequency: '', timing: 'after food' }] }))} />
+                  <button type="button" onClick={() => {
+                    update((c) => ({ ...c, prescription: [...c.prescription, { drugDisplay: '', timing: 'after food' }] }));
+                    requestAnimationFrame(() => (document.querySelectorAll<HTMLInputElement>('.med-name input')).forEach((el, i, all) => i === all.length - 1 && el.focus()));
+                  }}>+ Add medicine</button>
                 )}
+                <datalist id="drug-options">{drugOptions.map((d) => <option key={d.drugDisplay} value={d.drugDisplay} />)}</datalist>
                 <datalist id="frequencies">{FREQUENCIES.map((f) => <option key={f} value={f} />)}</datalist>
               </div>
 
-              <InvestigationsEditor items={content.investigations} editable={editable}
-                onChange={(items) => update((c) => ({ ...c, investigations: items }))} />
-
-              <label className="field">Advice
-                <textarea id="advice" rows={2} value={content.advice ?? ''} onChange={set('advice')} />
+              <label className="field">Advice for the patient
+                <textarea id="advice" rows={2} value={content.advice ?? ''} onChange={set('advice')} placeholder="e.g. Rest, plenty of fluids" />
               </label>
 
               <div style={{ display: 'grid', gap: 6 }}>
-                <h3>Follow-up</h3>
+                <h3>Next visit</h3>
                 <div className="row">
                   {[3, 7, 15, 30].map((d) => (
-                    <button type="button" key={d} onClick={() => update((c) => ({ ...c, followUp: { ...c.followUp, dueDate: addDays(todayIst(), d) } }))}>
+                    <button type="button" key={d} aria-pressed={content.followUp?.dueDate === addDays(todayIst(), d)}
+                            onClick={() => update((c) => ({ ...c, followUp: { ...c.followUp, dueDate: addDays(todayIst(), d) } }))}>
                       {d === 30 ? '1 month' : `${d} days`}
                     </button>
                   ))}
-                  <input id="followUpDate" type="date" aria-label="Follow-up date" style={{ width: 'auto' }} value={content.followUp?.dueDate ?? ''}
+                  <input id="followUpDate" type="date" aria-label="Next visit date" style={{ width: 'auto' }} value={content.followUp?.dueDate ?? ''}
                          onChange={(e) => update((c) => ({ ...c, followUp: e.target.value ? { ...c.followUp, dueDate: e.target.value } : undefined }))} />
-                  {content.followUp && <button type="button" className="link" onClick={() => update((c) => ({ ...c, followUp: undefined }))}>Clear</button>}
+                  {content.followUp && <button type="button" className="link" onClick={() => update((c) => ({ ...c, followUp: undefined }))}>None</button>}
                 </div>
               </div>
 
-              <label className="field">Private note (only this clinic sees it; never printed or shared)
-                <textarea id="privateNote" rows={2} value={content.privateNote ?? ''} onChange={set('privateNote')} />
-              </label>
+              <details className="more">
+                <summary>More details (vitals, history, examination, tests, private note)</summary>
+                <div>
+                  <h3>Vitals</h3>
+                  <div className="fields" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
+                    <VitalInput id="bpSys" label="BP systolic" value={content.vitals?.bpSystolic} onChange={setVital('bpSystolic')} />
+                    <VitalInput id="bpDia" label="BP diastolic" value={content.vitals?.bpDiastolic} onChange={setVital('bpDiastolic')} />
+                    <VitalInput id="pulse" label="Pulse /min" value={content.vitals?.pulse} onChange={setVital('pulse')} />
+                    <VitalInput id="temp" label="Temp °F" step="0.1" value={content.vitals?.temperatureF} onChange={setVital('temperatureF')} />
+                    <VitalInput id="spo2" label="SpO2 %" value={content.vitals?.spo2} onChange={setVital('spo2')} />
+                    <VitalInput id="weight" label="Weight kg" step="0.1" value={content.vitals?.weightKg} onChange={setVital('weightKg')} />
+                    <VitalInput id="rbs" label="RBS mg/dL" value={content.vitals?.bloodGlucoseMgDl} onChange={setVital('bloodGlucoseMgDl')} />
+                  </div>
+                </div>
+                <label className="field">History
+                  <textarea id="history" rows={2} value={content.historyOfPresentIllness ?? ''} onChange={set('historyOfPresentIllness')} />
+                </label>
+                <label className="field">Examination
+                  <textarea id="exam" rows={2} value={content.examination ?? ''} onChange={set('examination')} />
+                </label>
+                <TestsField items={content.investigations} editable={editable}
+                            onChange={(items) => update((c) => ({ ...c, investigations: items }))} />
+                <label className="field">Private note (only this clinic sees it; never printed or shared)
+                  <textarea id="privateNote" rows={2} value={content.privateNote ?? ''} onChange={set('privateNote')} />
+                </label>
+                {!amending && editingDraft && templates.length > 0 && (
+                  <label className="field">Fill from a template
+                    <select id="template" value="" onChange={(e) => applyTemplate(e.target.value)}>
+                      <option value="">Choose a template…</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </label>
+                )}
+              </details>
             </fieldset>
 
+            <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
+
             {amending ? (
-              <div className="row end">
+              <div style={{ display: 'grid', gap: 8 }}>
                 <input id="amendReason" placeholder="Reason for the change (required)" value={amendReason}
-                       onChange={(e) => setAmendReason(e.target.value)} style={{ maxWidth: 360 }} />
-                <button type="button" onClick={() => { setAmending(false); setContent(withDefaults(encounter.content)); }}>Cancel</button>
-                <button type="button" className="primary" disabled={amendReason.trim().length < 5} onClick={submitAmendment}>Save amendment</button>
+                       onChange={(e) => setAmendReason(e.target.value)} />
+                <div className="row end">
+                  <button type="button" onClick={() => { setAmending(false); setContent(withDefaults(encounter.content)); }}>Cancel</button>
+                  <button type="button" className="primary" disabled={amendReason.trim().length < 5} onClick={submitAmendment}>Save correction</button>
+                </div>
               </div>
             ) : editingDraft && isAuthor && (
-              <div className="row end">
-                <span className="muted small">Signing locks the visit. Corrections after that are recorded as amendments.</span>
-                <button type="button" className="primary" onClick={sign}>Sign visit</button>
-              </div>
+              <button type="button" className="primary block" onClick={sign}>Finish visit</button>
             )}
           </section>
         )}
@@ -414,7 +393,88 @@ export function VisitPage() {
   );
 }
 
+/** Diagnosis as plain text. Several can be separated with ";". Picking a suggestion keeps its code. */
+function DiagnosisField({ content, options, onChange }:
+  { content: EncounterContent; options: DiagnosisOption[]; onChange: (d: DiagnosisEntry[]) => void }) {
+  const [text, setText] = useState(() => content.diagnoses.map((d) => d.display).join('; '));
+  const chronic = content.diagnoses.some((d) => d.chronic);
+
+  // Follow changes made elsewhere (template, reload) without fighting the user's typing
+  const joined = content.diagnoses.map((d) => d.display).join('; ');
+  useEffect(() => {
+    if (normalise(text) !== normalise(joined)) setText(joined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+
+  function parse(value: string, isChronic: boolean): DiagnosisEntry[] {
+    return value.split(';').map((s) => s.trim()).filter(Boolean).map((display, i) => {
+      const match = options.find((o) => o.display.toLowerCase() === display.toLowerCase());
+      return {
+        display: match?.display ?? display,
+        code: match?.code || undefined,
+        codeSystem: match?.code ? match.codeSystem : undefined,
+        kind: i === 0 ? 'PRIMARY' : 'SECONDARY',
+        chronic: isChronic,
+      };
+    });
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      <label className="field">Diagnosis
+        <input id="diagnosis" list="diagnosis-options" value={text} placeholder="e.g. Viral fever"
+               onChange={(e) => { setText(e.target.value); onChange(parse(e.target.value, chronic)); }} />
+      </label>
+      <datalist id="diagnosis-options">{options.map((o) => <option key={o.display} value={o.display} />)}</datalist>
+      {text.trim() && (
+        <label className="check small">
+          <input type="checkbox" checked={chronic} onChange={(e) => onChange(parse(text, e.target.checked))} />
+          Long-term condition (shows in the patient's active problems)
+        </label>
+      )}
+    </div>
+  );
+}
+
+function normalise(s: string) {
+  return s.split(';').map((x) => x.trim()).filter(Boolean).join(';').toLowerCase();
+}
+
+/** One medicine: name, how often, when, for how long. Picking a suggestion fills the doctor's usual dose. */
+function MedicineRow({ n, item, options, onChange, onRemove }:
+  { n: number; item: RxItem; options: RxItem[]; onChange: (r: RxItem) => void; onRemove: () => void }) {
+  const days = item.longTerm ? 'ongoing' : item.durationDays ? String(item.durationDays) : '';
+  return (
+    <div className="med-row">
+      <div className="med-name">
+        <input aria-label={`Medicine ${n}`} list="drug-options" placeholder="Medicine name" value={item.drugDisplay}
+               onChange={(e) => {
+                 const match = options.find((o) => o.drugDisplay === e.target.value);
+                 onChange(match && !item.frequency
+                   ? { ...item, ...match, timing: match.timing ?? item.timing }
+                   : { ...item, drugDisplay: e.target.value, drugId: match?.drugId, genericName: match?.genericName ?? item.genericName });
+               }} />
+      </div>
+      <input className="med-freq" aria-label={`How often ${n}`} list="frequencies" placeholder="How often (1-0-1)" value={item.frequency ?? ''}
+             onChange={(e) => onChange({ ...item, frequency: e.target.value || undefined })} />
+      <select className="med-when" aria-label={`When ${n}`} value={item.timing ?? ''} onChange={(e) => onChange({ ...item, timing: e.target.value || undefined })}>
+        {TIMINGS.map((t) => <option key={t} value={t}>{t || 'When?'}</option>)}
+      </select>
+      <select className="med-days" aria-label={`Days ${n}`} value={days}
+              onChange={(e) => onChange(e.target.value === 'ongoing'
+                ? { ...item, longTerm: true, durationDays: undefined }
+                : { ...item, longTerm: false, durationDays: e.target.value ? Number(e.target.value) : undefined })}>
+        <option value="">Days</option>
+        {DAYS.map((d) => <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'}</option>)}
+        <option value="ongoing">Ongoing</option>
+      </select>
+      <button type="button" className="link danger med-x" aria-label={`Remove medicine ${n}`} onClick={onRemove}>✕</button>
+    </div>
+  );
+}
+
 function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; canAmend: boolean; onAmend: () => void }) {
+  const { has } = useSession();
   const c = encounter.content;
   const latest = encounter.versions[encounter.versions.length - 1];
   return (
@@ -422,81 +482,47 @@ function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; ca
       <div className="between">
         <h2>Visit</h2>
         <div className="row">
-          <button className="primary" onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A5`)}>Print prescription (A5)</button>
-          <button onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A4`)}>A4</button>
-          {canAmend && <button onClick={onAmend}>Amend</button>}
+          <button className="primary" onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A5`)}>Print</button>
+          <button onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A4`)}>Print A4</button>
+          {canAmend && <button onClick={onAmend}>Correct</button>}
         </div>
       </div>
       <p className="muted small">
-        Visit {dateTime(encounter.startedAt)} · signed {dateTime(encounter.signedAt)}
-        {latest && latest.version > 1 && <> · amended {dateTime(latest.signedAt)} ({latest.amendmentReason})</>}
+        Visit {dateTime(encounter.startedAt)} · finished {dateTime(encounter.signedAt)}
+        {latest && latest.version > 1 && <> · corrected {dateTime(latest.signedAt)} ({latest.amendmentReason})</>}
       </p>
       <dl className="signed-view" style={{ margin: 0 }}>
         {c.chiefComplaints && <><dt>Complaints</dt><dd>{c.chiefComplaints}</dd></>}
-        {c.examination && <><dt>Examination</dt><dd>{c.examination}</dd></>}
         {c.diagnoses.length > 0 && (
-          <><dt>Diagnosis</dt><dd>{c.diagnoses.map((d) => `${d.display}${d.code ? ` (${d.code})` : ''}`).join('; ')}</dd></>
+          <><dt>Diagnosis</dt><dd>{c.diagnoses.map((d) => d.display).join('; ')}</dd></>
         )}
         {c.treatmentGiven && <><dt>Treatment given</dt><dd>{c.treatmentGiven}</dd></>}
         {c.prescription.length > 0 && (
           <>
-            <dt>Rx</dt>
+            <dt>Medicines</dt>
             <dd>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>When</th><th>Duration</th></tr></thead>
-                  <tbody>
-                    {c.prescription.map((r, i) => (
-                      <tr key={i}>
-                        <td>{i + 1}</td>
-                        <td><b>{r.drugDisplay}</b>{r.instructions && <div className="small muted">{r.instructions}</div>}</td>
-                        <td>{r.dose}</td><td>{r.frequency}</td><td>{r.timing}</td>
-                        <td>{r.longTerm ? 'Continue' : r.durationDays ? `${r.durationDays} days` : ''}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {c.prescription.map((r, i) => (
+                <div key={i}>
+                  {i + 1}. <b>{r.drugDisplay}</b>{' '}
+                  <span className="muted">{[r.dose, r.frequency, r.timing, r.longTerm ? 'ongoing' : r.durationDays ? `${r.durationDays} days` : ''].filter(Boolean).join(' · ')}</span>
+                  {r.instructions && <div className="small muted">{r.instructions}</div>}
+                </div>
+              ))}
             </dd>
           </>
         )}
-        {c.investigations.length > 0 && <><dt>Investigations</dt><dd>{c.investigations.map((i) => i.display).join(', ')}</dd></>}
         {c.advice && <><dt>Advice</dt><dd>{c.advice}</dd></>}
-        {c.followUp && <><dt>Follow-up</dt><dd>{date(c.followUp.dueDate)}{c.followUp.note ? ` · ${c.followUp.note}` : ''}</dd></>}
+        {c.followUp && <><dt>Next visit</dt><dd>{date(c.followUp.dueDate)}{c.followUp.note ? ` · ${c.followUp.note}` : ''}</dd></>}
+        {c.examination && <><dt>Examination</dt><dd>{c.examination}</dd></>}
+        {c.investigations.length > 0 && <><dt>Tests</dt><dd>{c.investigations.map((i) => i.display).join(', ')}</dd></>}
         {c.privateNote && <><dt>Private note</dt><dd className="muted">{c.privateNote}</dd></>}
       </dl>
+      <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
     </section>
   );
 }
 
-function RxRow({ n, item, onChange, onRemove }: { n: number; item: RxItem; onChange: (r: RxItem) => void; onRemove: () => void }) {
-  const set = (k: keyof RxItem) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    onChange({ ...item, [k]: e.target.value || undefined });
-  return (
-    <div className="rx-line">
-      <span className="num">{n}</span>
-      <input aria-label={`Medicine ${n}`} className="rx-wide" value={item.drugDisplay} onChange={(e) => onChange({ ...item, drugDisplay: e.target.value })} />
-      <input aria-label={`Dose ${n}`} className="rx-wide" placeholder="Dose" value={item.dose ?? ''} onChange={set('dose')} />
-      <input aria-label={`Frequency ${n}`} className="rx-wide" placeholder="1-0-1" list="frequencies" value={item.frequency ?? ''}
-             onChange={(e) => onChange({ ...item, frequency: e.target.value })} />
-      <select aria-label={`When ${n}`} className="rx-wide" value={item.timing ?? ''} onChange={set('timing')}>
-        {TIMINGS.map((t) => <option key={t} value={t}>{t || 'When'}</option>)}
-      </select>
-      <div className="row rx-wide" style={{ flexWrap: 'nowrap' }}>
-        {item.longTerm ? <span className="small">Long-term</span> : (
-          <input aria-label={`Days ${n}`} type="number" min={1} max={365} placeholder="Days" value={item.durationDays ?? ''}
-                 onChange={(e) => onChange({ ...item, durationDays: e.target.value ? Number(e.target.value) : undefined })} />
-        )}
-        <label className="check" title="Long-term medicine"><input type="checkbox" checked={!!item.longTerm}
-          onChange={(e) => onChange({ ...item, longTerm: e.target.checked, durationDays: e.target.checked ? undefined : item.durationDays })} />LT</label>
-      </div>
-      <button type="button" className="link danger" aria-label={`Remove medicine ${n}`} onClick={onRemove}>✕</button>
-      <input aria-label={`Instructions ${n}`} className="rx-extra small" placeholder="Instructions (optional)" value={item.instructions ?? ''} onChange={set('instructions')} />
-    </div>
-  );
-}
-
-function InvestigationsEditor({ items, editable, onChange }:
+function TestsField({ items, editable, onChange }:
   { items: EncounterContent['investigations']; editable: boolean; onChange: (i: EncounterContent['investigations']) => void }) {
   const [text, setText] = useState('');
   function add() {
@@ -507,7 +533,7 @@ function InvestigationsEditor({ items, editable, onChange }:
   }
   return (
     <div style={{ display: 'grid', gap: 6 }}>
-      <h3>Investigations</h3>
+      <h3>Tests advised</h3>
       <div className="row">
         {items.map((i, n) => (
           <span key={n} className="chip">{i.display}
@@ -517,9 +543,11 @@ function InvestigationsEditor({ items, editable, onChange }:
         ))}
       </div>
       {editable && (
-        <input id="testInput" placeholder="Add a test (e.g. CBC, HbA1c) and press Enter" value={text}
-               onChange={(e) => setText(e.target.value)}
-               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+        <div className="row" style={{ flexWrap: 'nowrap' }}>
+          <input id="testInput" placeholder="e.g. CBC" value={text} onChange={(e) => setText(e.target.value)}
+                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+          <button type="button" onClick={add}>Add</button>
+        </div>
       )}
     </div>
   );
@@ -544,6 +572,6 @@ function rxKey(r: RxItem) {
 
 function fieldLabel(path: string) {
   const m = path.match(/^prescription\[(\d+)\]\.(\w+)$/);
-  if (m) return `Medicine ${Number(m[1]) + 1} ${m[2] === 'durationDays' ? 'duration' : m[2]}`;
-  return ({ visit: 'Visit', diagnoses: 'Diagnosis', 'followUp.dueDate': 'Follow-up date' } as Record<string, string>)[path] ?? path;
+  if (m) return `Medicine ${Number(m[1]) + 1} ${m[2] === 'drugDisplay' ? 'name' : m[2]}`;
+  return ({ visit: 'Visit', diagnoses: 'Diagnosis', 'followUp.dueDate': 'Next visit' } as Record<string, string>)[path] ?? path;
 }

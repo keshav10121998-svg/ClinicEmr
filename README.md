@@ -11,11 +11,11 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Clinic signup | `POST /api/v1/clinics` (clinic + first admin, optionally also the doctor) |
 | Staff login | `POST /api/v1/auth/staff/login` → JWT + clinics and roles |
 | Clinic and staff | `GET /api/v1/clinic`, `GET/POST /api/v1/clinic/staff` |
-| Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/{id}` |
-| Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents`, `GET …/documents/{docId}` (pre-signed view URLs) |
+| Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
+| Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
 | Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
-| Terminology | `GET /api/v1/terminology/diagnoses?q=` (ICD-10 + local synonyms), `GET /api/v1/terminology/drugs?q=` |
+| Terminology | `GET /api/v1/terminology/diagnoses?q=` (ICD-10 + local synonyms), `GET /api/v1/terminology/drugs?q=`, `GET …/diagnoses/all`, `GET …/drugs/all` (whole lists for suggestions) |
 | Patient summary | `GET /api/v1/clinic/patients/{id}/summary`, `GET …/vitals?code=`, `GET …/last-prescription`, `POST …/problems/resolve`, `POST …/medicines/stop` |
 | Allergies | `GET/POST /api/v1/clinic/patients/{id}/allergies`, `POST …/allergies/none-known`, `POST …/allergies/{allergyId}/status` |
 | Templates | `GET/POST /api/v1/me/templates`, `PUT/DELETE /api/v1/me/templates/{id}`, `POST /api/v1/clinic/encounters/{id}/apply-template` |
@@ -32,14 +32,18 @@ A clinic only sees patients linked to it; lookups never reveal whether a number 
 React + TypeScript + Vite. Screens so far:
 
 - **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
-- **Patients:** one search box for mobile number, name or patient ID; register with age or date of birth and a
-  duplicate warning that offers the existing record.
+- **Patients:** the clinic's patients, most recently seen first; tap one to open. Typing only narrows the list.
+  Registering asks for name, sex, age and mobile; date of birth, ABHA and blood group are optional extras. A
+  duplicate warning offers the existing record.
 - **Patient:** header with allergies in red (or "not asked yet"), active problems, current medicines, latest
-  vitals, allergy editor, visits at this clinic with print links. Front desk sees the header only.
-- **Visit:** complaints, vitals, history, examination, diagnosis and medicine search (doctor's favourites first,
-  free text allowed), dose / frequency / timing / days or long-term per line, tests, advice, follow-up shortcuts,
-  private note. Autosaves about a second after typing stops (Ctrl+S saves now) and shows allergy and duplicate
-  warnings. Templates, repeat last prescription, sign, print A5/A4, and amend with a reason.
+  vitals, allergy editor, visits at this clinic with print links, and reports and files (attach a photo or PDF).
+  Front desk sees the header only.
+- **Visit:** a short form where every field is optional: complaints, diagnosis, treatment given, medicines (name,
+  how often, when, days or ongoing), advice, next visit, and optional photo or PDF attachments linked to the visit.
+  Diagnosis and medicine boxes suggest as you type (doctor's favourites first) but accept any text. Vitals,
+  history, examination, tests, private note and templates sit under *More details*. Autosaves about a second after
+  typing stops (Ctrl+S saves now) and shows allergy and duplicate warnings. Same as last time, finish, print
+  A5/A4, and correct with a reason. Works on phones (form first, summary below) as well as desktops.
 
 - **Staff** (admins): list staff and add doctors (with registration details), nurses, front desk and admins.
   Someone who already uses ClinicEMR at another clinic joins by email and keeps their sign-in.

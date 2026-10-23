@@ -51,8 +51,9 @@ public class DocumentController {
     }
 
     @GetMapping
-    public List<DocumentSummary> list(ClinicContext ctx, @PathVariable UUID patientId) {
-        return documents.list(ctx, patientId);
+    public List<DocumentSummary> list(ClinicContext ctx, @PathVariable UUID patientId,
+                                      @org.springframework.web.bind.annotation.RequestParam(required = false) UUID encounterId) {
+        return documents.list(ctx, patientId, encounterId);
     }
 
     @GetMapping("/{documentId}")

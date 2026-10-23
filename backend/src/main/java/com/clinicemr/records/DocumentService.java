@@ -39,8 +39,22 @@ public class DocumentService {
     @Transactional
     public StartUploadResponse startUpload(ClinicContext ctx, UUID patientId, StartUploadRequest req) {
         long profileId = patients.requireLinkedProfileId(ctx, patientId);
+        if (req.encounterId() != null) {
+            boolean ownVisit = jdbc.sql("""
+                    SELECT EXISTS (SELECT 1 FROM encounter WHERE id = :id AND clinic_id = :clinicId AND profile_id = :profileId
+                                    AND status <> 'CANCELLED')
+                    """)
+                    .param("id", req.encounterId())
+                    .param("clinicId", ctx.clinicId())
+                    .param("profileId", profileId)
+                    .query(Boolean.class)
+                    .single();
+            if (!ownVisit) {
+                throw ApiException.notFound("Visit");
+            }
+        }
         StartUploadResponse res = store.start(profileId,
-                new DocumentStore.Origin("CLINIC", ctx.clinicId(), "staff:" + ctx.staffId(), true), req,
+                new DocumentStore.Origin("CLINIC", ctx.clinicId(), "staff:" + ctx.staffId(), true, req.encounterId()), req,
                 (docId, page) -> "/api/v1/clinic/patients/" + patientId + "/documents/" + docId + "/pages/" + page);
         audit.staff(ctx.staffId(), ctx.clinicId(), "DOCUMENT_UPLOAD_STARTED", "medical_document",
                 res.documentId().toString(), Map.of("pages", res.uploads().size()));
@@ -62,14 +76,17 @@ public class DocumentService {
         return summary;
     }
 
-    public List<DocumentSummary> list(ClinicContext ctx, UUID patientId) {
+    /** This clinic's documents for the patient, optionally only those attached to one visit. */
+    public List<DocumentSummary> list(ClinicContext ctx, UUID patientId, UUID encounterId) {
         long profileId = patients.requireLinkedProfileId(ctx, patientId);
         return jdbc.sql(DocumentStore.SELECT_DOC + """
                  AND d.profile_id = :profileId AND d.clinic_id = :clinicId AND d.status = 'READY'
+                 AND (CAST(:encounterId AS uuid) IS NULL OR d.encounter_id = CAST(:encounterId AS uuid))
                  ORDER BY d.record_date DESC NULLS LAST, d.created_at DESC
                 """)
                 .param("profileId", profileId)
                 .param("clinicId", ctx.clinicId())
+                .param("encounterId", encounterId)
                 .query(DocRow.class)
                 .list().stream().map(DocRow::toSummary).toList();
     }

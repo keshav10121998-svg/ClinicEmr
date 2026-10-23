@@ -27,7 +27,8 @@ public final class DocumentDtos {
             String docType,
             @Size(max = 200) String title,
             @PastOrPresent LocalDate recordDate,
-            @NotEmpty @Size(max = 20, message = "at most 20 pages per document") List<@Valid FileSpec> files) {
+            @NotEmpty @Size(max = 20, message = "at most 20 pages per document") List<@Valid FileSpec> files,
+            UUID encounterId) {
     }
 
     /**
@@ -40,8 +41,9 @@ public final class DocumentDtos {
     public record StartUploadResponse(UUID documentId, List<UploadTarget> uploads, Instant urlsExpireAt, String next) {
     }
 
+    /** {@code encounterId} is set when the file was attached to a visit. */
     public record DocumentSummary(UUID id, String docType, String title, LocalDate recordDate, String source,
-                                  boolean verified, int pages, Instant createdAt) {
+                                  boolean verified, int pages, Instant createdAt, UUID encounterId) {
     }
 
     public record PageLink(int pageNo, String mimeType, Long sizeBytes, URL url) {

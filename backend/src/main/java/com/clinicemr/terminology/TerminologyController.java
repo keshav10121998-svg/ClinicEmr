@@ -72,6 +72,28 @@ public class TerminologyController {
                 .list();
     }
 
+    /** The whole starter list, for simple pick-as-you-type boxes that don't need a search request per keystroke. */
+    @GetMapping("/diagnoses/all")
+    public List<DiagnosisOption> allDiagnoses() {
+        ClinicContextResolver.currentStaffId();
+        return jdbc.sql("SELECT 'ICD10' AS code_system, code, display FROM icd10_code ORDER BY display LIMIT 2000")
+                .query(DiagnosisOption.class)
+                .list();
+    }
+
+    @GetMapping("/drugs/all")
+    public List<DrugOption> allDrugs() {
+        ClinicContextResolver.currentStaffId();
+        return jdbc.sql("""
+                SELECT id, generic_name, brand_name, strength, form,
+                       coalesce(brand_name || ' (' || generic_name || ')', generic_name)
+                         || coalesce(' ' || strength, '') || ' ' || form AS display
+                  FROM drug WHERE active ORDER BY generic_name, strength LIMIT 2000
+                """)
+                .query(DrugOption.class)
+                .list();
+    }
+
     private static String term(String q) {
         String t = q == null ? "" : q.trim();
         if (t.length() < 2) {

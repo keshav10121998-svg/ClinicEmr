@@ -43,6 +43,12 @@ public class PatientController {
         return patients.search(ctx, q);
     }
 
+    /** Most recently seen or registered patients of this clinic. */
+    @GetMapping("/recent")
+    public List<PatientService.RecentPatient> recent(ClinicContext ctx, @RequestParam(defaultValue = "200") int limit) {
+        return patients.recent(ctx, limit);
+    }
+
     @GetMapping("/{publicId}")
     public PatientView get(ClinicContext ctx, @PathVariable UUID publicId) {
         return patients.get(ctx, publicId);

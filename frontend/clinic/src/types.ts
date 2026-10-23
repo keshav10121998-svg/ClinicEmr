@@ -268,3 +268,21 @@ export interface Problem {
   candidates?: DuplicateCandidate[];
   [key: string]: unknown;
 }
+
+export interface DocumentSummary {
+  id: string;
+  docType: string;
+  title?: string;
+  recordDate?: string;
+  source: string;
+  verified: boolean;
+  pages: number;
+  createdAt: string;
+  encounterId?: string;
+}
+
+export interface DocumentDetail {
+  document: DocumentSummary;
+  pages: { pageNo: number; mimeType: string; sizeBytes?: number; url: string }[];
+  linksExpireAt: string;
+}

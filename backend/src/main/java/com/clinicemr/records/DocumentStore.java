@@ -45,23 +45,27 @@ public class DocumentStore {
         this.props = props;
     }
 
-    /** Who a new document comes from. {@code clinicId} is null for patient uploads. */
-    public record Origin(String source, Long clinicId, String uploadedBy, boolean verified) {
+    /**
+     * Who a new document comes from. {@code clinicId} is null for patient uploads; {@code encounterId} links a
+     * clinic's file to the visit it was attached in (callers check the visit belongs to them).
+     */
+    public record Origin(String source, Long clinicId, String uploadedBy, boolean verified, UUID encounterId) {
     }
 
     record FileRow(UUID id, int pageNo, String storageKey, String mimeType, Long sizeBytes) {
     }
 
     public record DocRow(UUID id, long profileId, Long clinicId, String uploadedBy, String docType, String title,
-                         LocalDate recordDate, String source, boolean verified, String status, int pages, Instant createdAt) {
+                         LocalDate recordDate, String source, boolean verified, String status, int pages, Instant createdAt,
+                         UUID encounterId) {
         public DocumentSummary toSummary() {
-            return new DocumentSummary(id, docType, title, recordDate, source, verified, pages, createdAt);
+            return new DocumentSummary(id, docType, title, recordDate, source, verified, pages, createdAt, encounterId);
         }
     }
 
     public static final String SELECT_DOC = """
             SELECT d.id, d.profile_id, d.clinic_id, d.uploaded_by, d.doc_type, d.title, d.record_date, d.source,
-                   d.verified, d.status, d.created_at,
+                   d.verified, d.status, d.created_at, d.encounter_id,
                    (SELECT count(*) FROM document_file f WHERE f.document_id = d.id)::int AS pages
               FROM medical_document d
              WHERE d.deleted_at IS NULL
@@ -92,10 +96,12 @@ public class DocumentStore {
         }
 
         UUID documentId = jdbc.sql("""
-                INSERT INTO medical_document (profile_id, source, clinic_id, uploaded_by, doc_type, title, record_date, verified)
-                VALUES (:profileId, :source, :clinicId, :uploadedBy, :docType, :title, :recordDate, :verified)
+                INSERT INTO medical_document (profile_id, source, clinic_id, uploaded_by, doc_type, title, record_date,
+                                              verified, encounter_id)
+                VALUES (:profileId, :source, :clinicId, :uploadedBy, :docType, :title, :recordDate, :verified, :encounterId)
                 RETURNING id
                 """)
+                .param("encounterId", origin.encounterId())
                 .param("profileId", profileId)
                 .param("source", origin.source())
                 .param("clinicId", origin.clinicId())

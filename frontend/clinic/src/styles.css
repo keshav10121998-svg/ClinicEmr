@@ -106,33 +106,70 @@ tr.clickable:hover td { background: var(--surface-2); }
 
 /* ----- visit screen */
 .visit-layout { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+/* In one column the form comes first; the summary follows it */
+.visit-layout > aside { order: 2; }
+@media (min-width: 1100px) { .visit-layout > aside { order: 0; } }
+@media (max-width: 640px) {
+  .topbar { gap: 8px; }
+  .topbar .who { display: none; }
+  .topbar nav a { padding: 6px 8px; }
+}
 /* The summary column only sticks beside the form; in one column it would cover the form while scrolling */
 @media (min-width: 1100px) {
   .visit-layout { grid-template-columns: 320px minmax(0, 1fr); }
   .sticky { position: sticky; top: 60px; }
 }
 .section-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.rx-line { display: grid; gap: 6px; grid-template-columns: 24px minmax(180px, 2fr) repeat(3, minmax(90px, 1fr)) 110px 32px; align-items: center; }
-.rx-line .num { color: var(--muted); font-variant-numeric: tabular-nums; }
-.rx-extra { grid-column: 2 / -1; }
-@media (max-width: 760px) { .rx-line { grid-template-columns: 24px minmax(0, 1fr) 32px; } .rx-line > .rx-wide { grid-column: 2 / -1; } }
-.dx-line { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr) 140px auto 32px; align-items: center; }
-@media (max-width: 760px) { .dx-line { grid-template-columns: minmax(0, 1fr) 32px; } .dx-line > .dx-wide { grid-column: 1 / -1; } }
 .save-state { font-size: 12px; color: var(--muted); }
 .save-state.bad { color: var(--danger); }
 .signed-view dt { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-top: 10px; }
 .signed-view dd { margin: 2px 0 0; white-space: pre-wrap; }
 
-/* ----- typeahead */
-.typeahead { position: relative; }
-.typeahead ul {
-  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 2px); margin: 0; padding: 4px 0; list-style: none;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0,0,0,.08);
-  max-height: 280px; overflow-y: auto;
+/* ----- patient list: whole row is the tap target */
+.patient-list { display: grid; }
+.patient-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; text-align: left;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 12px 4px; background: none; min-height: 56px;
 }
-.typeahead li { padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; justify-content: space-between; }
-.typeahead li.active, .typeahead li:hover { background: var(--accent-soft); }
-.typeahead li .tag { font-size: 11px; color: var(--muted); }
+.patient-row:hover { background: var(--surface-2); }
+.patient-row .patient-name { font-weight: 600; font-size: 15px; }
+.patient-row .last-visit { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); white-space: nowrap; }
+@media (max-width: 520px) { .patient-row { grid-template-columns: minmax(0, 1fr); } .patient-row .last-visit { grid-column: 1; grid-row: auto; } }
+
+/* ----- simple choices */
+.segmented { display: flex; gap: 0; }
+.segmented button { flex: 1; border-radius: 0; margin-left: -1px; }
+.segmented button:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
+.segmented button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.segmented button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); position: relative; }
+button.block { width: 100%; padding: 11px 16px; }
+details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 6px 0; list-style: none; }
+details.more > summary::before { content: '+ '; }
+details.more[open] > summary::before { content: '− '; }
+details.more[open] { display: grid; gap: 14px; }
+
+/* ----- simple medicine rows */
+.med-row { display: grid; gap: 6px; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.1fr) 90px 36px; align-items: center; }
+@media (max-width: 760px) {
+  .med-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 44px;
+    grid-template-areas: "name name name x" "freq when days days";
+    padding: 8px; border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  .med-row > .med-name { grid-area: name; }
+  .med-row > .med-freq { grid-area: freq; }
+  .med-row > .med-when { grid-area: when; }
+  .med-row > .med-days { grid-area: days; }
+  .med-row > .med-x { grid-area: x; }
+}
+.files { display: grid; gap: 6px; }
+.file-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius); }
+.attach { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border: 1px dashed var(--accent); color: var(--accent);
+  border-radius: var(--radius); padding: 10px 14px; font-weight: 600; justify-content: center; }
+.attach input { display: none; }
+
+/* bigger touch targets on touch screens */
+@media (pointer: coarse) { input, select, textarea, button { min-height: 44px; font-size: 16px; } }
 
 /* ----- auth */
 .auth { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
