@@ -123,6 +123,7 @@ public class TemplateService {
                 draft.historyOfPresentIllness(),
                 draft.pastHistory(),
                 firstNonBlank(draft.examination(), t.examination()),
+                firstNonBlank(draft.treatmentGiven(), t.treatmentGiven()),
                 firstNonBlank(draft.advice(), t.advice()),
                 draft.privateNote(),
                 draft.vitals(),

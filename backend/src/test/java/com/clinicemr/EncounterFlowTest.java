@@ -95,15 +95,14 @@ class EncounterFlowTest extends IntegrationTestBase {
                 {"baseVersion": 0, "content": {"chiefComplaints": "Fever"}}
                 """).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DRAFT_VERSION_CONFLICT"));
 
-        // Incomplete drafts save fine but can't be signed
+        // Everything is optional, but an empty visit can't be signed
         perform(put(visit), doctor, clinic, """
-                {"baseVersion": 1, "content": {"chiefComplaints": "Fever", "prescription": [{"drugDisplay": "Paracetamol"}]}}
+                {"baseVersion": 1, "content": {"chiefComplaints": "  "}}
                 """).andExpect(status().isOk());
         perform(post(visit + "/sign"), doctor, clinic, null)
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("MISSING_REQUIRED_FIELDS"))
-                .andExpect(jsonPath("$.fields.diagnoses").exists())
-                .andExpect(jsonPath("$.fields['prescription[0].frequency']").exists());
+                .andExpect(jsonPath("$.fields.visit").exists());
 
         // A colleague can't edit or sign another doctor's visit
         perform(put(visit), doctor2, clinic, "{\"baseVersion\": 2, \"content\": " + FULL_CONTENT + "}")
@@ -173,6 +172,59 @@ class EncounterFlowTest extends IntegrationTestBase {
         String otherEmail = uniqueEmail("other");
         long otherClinic = registerClinic("Other Clinic", otherEmail);
         perform(get(visit), login(otherEmail), otherClinic, null).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void diagnosisTreatmentAndMedicinesAreOptionalAndLastVisitShowsThem() throws Exception {
+        String email = uniqueEmail("doc");
+        long clinic = registerClinic("Optional Fields Clinic", email);
+        String doctor = login(email);
+        String patientId = body(perform(post("/api/v1/clinic/patients"), doctor, clinic, """
+                {"name": "Suresh", "gender": "M", "ageYears": 52, "phone": "9123456781"}
+                """)).get("publicId").asText();
+        String patient = "/api/v1/clinic/patients/" + patientId;
+
+        // Visit 1: only medicines, no diagnosis, and a medicine with nothing but its name
+        UUID v1 = UUID.randomUUID();
+        perform(post("/api/v1/clinic/encounters"), doctor, clinic,
+                "{\"id\": \"%s\", \"patientId\": \"%s\"}".formatted(v1, patientId)).andExpect(status().isCreated());
+        perform(put("/api/v1/clinic/encounters/" + v1), doctor, clinic, """
+                {"baseVersion": 0, "content": {"prescription": [
+                   {"drugDisplay": "Pantoprazole 40 mg tablet", "frequency": "1-0-0", "timing": "before food", "durationDays": 14},
+                   {"drugDisplay": "Antacid syrup"}]}}
+                """).andExpect(status().isOk());
+        perform(post("/api/v1/clinic/encounters/" + v1 + "/sign"), doctor, clinic, null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SIGNED"));
+        perform(get("/api/v1/clinic/encounters/" + v1 + "/prescription.pdf"), doctor, clinic, null).andExpect(status().isOk());
+
+        // Visit 2: only a treatment given in the clinic
+        UUID v2 = UUID.randomUUID();
+        perform(post("/api/v1/clinic/encounters"), doctor, clinic,
+                "{\"id\": \"%s\", \"patientId\": \"%s\"}".formatted(v2, patientId)).andExpect(status().isCreated());
+        perform(put("/api/v1/clinic/encounters/" + v2), doctor, clinic, """
+                {"baseVersion": 0, "content": {"treatmentGiven": "Wound dressing, left leg"}}
+                """).andExpect(status().isOk());
+        perform(post("/api/v1/clinic/encounters/" + v2 + "/sign"), doctor, clinic, null).andExpect(status().isOk());
+
+        // Last visit is visit 2 with its time and treatment; history lists both with treatment and medicines
+        JsonNode last = body(perform(get(patient + "/summary"), doctor, clinic, null)).get("lastVisit");
+        assertThat(last.get("encounterId").asText()).isEqualTo(v2.toString());
+        assertThat(last.get("date").asText()).isNotBlank();
+        assertThat(last.get("treatmentGiven").asText()).isEqualTo("Wound dressing, left leg");
+        assertThat(last.get("medicines")).isEmpty();
+
+        JsonNode history = body(perform(get(patient + "/encounters"), doctor, clinic, null));
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).get("treatmentGiven").asText()).isEqualTo("Wound dressing, left leg");
+        assertThat(history.get(1).get("medicines").asText()).isEqualTo("Pantoprazole 40 mg tablet; Antacid syrup");
+        assertThat(history.get(1).get("diagnoses").asText()).isEmpty();
+
+        // Back to the visit with medicines: its lines read naturally even when details were left out
+        jdbc.sql("UPDATE encounter SET started_at = now() + interval '1 minute' WHERE id = :id").param("id", v1).update();
+        last = body(perform(get(patient + "/summary"), doctor, clinic, null)).get("lastVisit");
+        assertThat(last.get("medicines").get(0).asText()).isEqualTo("Pantoprazole 40 mg tablet · 1-0-0 · before food · 14 days");
+        assertThat(last.get("medicines").get(1).asText()).isEqualTo("Antacid syrup");
+        assertThat(last.has("treatmentGiven")).isFalse();
     }
 
     @Test

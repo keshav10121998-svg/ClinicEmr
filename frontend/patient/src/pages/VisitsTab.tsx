@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { VisitItem } from '../types';
-import { date } from '../format';
+import { dateTime } from '../format';
 
 export function VisitsTab({ profileId }: { profileId: string }) {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export function VisitsTab({ profileId }: { profileId: string }) {
           <button key={v.encounterId} className="link" style={{ textAlign: 'left', color: 'inherit', padding: '12px 0' }}
                   onClick={() => navigate(`/profiles/${profileId}/visits/${v.encounterId}`)}>
             <div className="between">
-              <b>{date(v.date)}</b>
+              <b>{dateTime(v.date)}</b>
               {v.version > 1 && <span className="chip">updated by doctor</span>}
             </div>
             <div>{v.clinicName}{v.clinicCity ? `, ${v.clinicCity}` : ''} · {v.doctorName}</div>

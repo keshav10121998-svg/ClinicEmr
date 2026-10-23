@@ -301,9 +301,15 @@ public class EncounterService {
                 SELECT e.id, e.visit_type, e.started_at, e.signed_at, s.name AS doctor_name, e.current_version,
                        coalesce((SELECT string_agg(d.display, '; ' ORDER BY d.line_no) FROM diagnosis d
                                   WHERE d.encounter_id = e.id), '') AS diagnoses,
+                       n.treatment_given,
+                       coalesce((SELECT string_agg(pi.drug_display, '; ' ORDER BY pi.line_no)
+                                   FROM prescription_item pi JOIN prescription p ON p.id = pi.prescription_id
+                                  WHERE p.encounter_id = e.id), '') AS medicines,
                        (SELECT count(*) FROM prescription_item pi JOIN prescription p ON p.id = pi.prescription_id
                          WHERE p.encounter_id = e.id)::int AS prescription_lines
-                  FROM encounter e JOIN staff_user s ON s.id = e.doctor_id
+                  FROM encounter e
+                  JOIN staff_user s ON s.id = e.doctor_id
+                  LEFT JOIN encounter_note n ON n.encounter_id = e.id
                  WHERE e.profile_id = :profileId AND e.clinic_id = :clinicId AND e.status = 'SIGNED'
                  ORDER BY e.started_at DESC
                  LIMIT 100
@@ -345,14 +351,9 @@ public class EncounterService {
         for (ConstraintViolation<EncounterContent> v : validator.validate(c)) {
             problems.putIfAbsent(v.getPropertyPath().toString(), v.getMessage());
         }
-        if (c.diagnoses().isEmpty()) {
-            problems.put("diagnoses", "add at least one diagnosis");
-        }
-        for (int i = 0; i < c.prescription().size(); i++) {
-            var item = c.prescription().get(i);
-            if (item.durationDays() == null && !item.longTerm()) {
-                problems.putIfAbsent("prescription[" + i + "].durationDays", "enter a duration or mark as long-term");
-            }
+        // Diagnosis, treatment and medicines are all optional, but a signed visit must record something
+        if (!c.hasAnyContent()) {
+            problems.put("visit", "record at least one thing about this visit, such as complaints, diagnosis, treatment or medicines");
         }
         LocalDate visitDate = LocalDate.ofInstant(startedAt, IST);
         if (c.followUp() != null && c.followUp().dueDate() != null && !c.followUp().dueDate().isAfter(visitDate)) {

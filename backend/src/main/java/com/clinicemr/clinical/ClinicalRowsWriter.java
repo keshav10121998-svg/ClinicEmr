@@ -58,14 +58,15 @@ class ClinicalRowsWriter {
 
         jdbc.sql("""
                 INSERT INTO encounter_note (encounter_id, chief_complaints, history_present_illness, past_history,
-                                            examination, advice, private_note)
-                VALUES (:id, :cc, :hpi, :past, :exam, :advice, :private)
+                                            examination, treatment_given, advice, private_note)
+                VALUES (:id, :cc, :hpi, :past, :exam, :treatment, :advice, :private)
                 """)
                 .param("id", encounterId)
                 .param("cc", c.chiefComplaints())
                 .param("hpi", c.historyOfPresentIllness())
                 .param("past", c.pastHistory())
                 .param("exam", c.examination())
+                .param("treatment", c.treatmentGiven())
                 .param("advice", c.advice())
                 .param("private", c.privateNote())
                 .update();
@@ -123,7 +124,7 @@ class ClinicalRowsWriter {
                         .param("drug", r.drugDisplay().trim())
                         .param("generic", r.genericName())
                         .param("dose", r.dose())
-                        .param("freq", r.frequency().trim())
+                        .param("freq", r.frequency() == null || r.frequency().isBlank() ? null : r.frequency().trim())
                         .param("route", r.route())
                         .param("timing", r.timing())
                         .param("days", r.durationDays())

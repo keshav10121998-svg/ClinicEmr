@@ -53,7 +53,9 @@ public final class EncounterDtos {
     public record ApplyTemplateRequest(int baseVersion, @NotNull UUID templateId) {
     }
 
+    /** One row of a patient's visit history: when, who, what was found, what treatment and which medicines. */
     public record EncounterListItem(UUID id, String visitType, Instant startedAt, Instant signedAt, String doctorName,
-                                    int currentVersion, String diagnoses, int prescriptionLines) {
+                                    int currentVersion, String diagnoses, String treatmentGiven, String medicines,
+                                    int prescriptionLines) {
     }
 }

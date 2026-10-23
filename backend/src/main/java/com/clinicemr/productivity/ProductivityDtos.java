@@ -25,6 +25,7 @@ public final class ProductivityDtos {
     public record TemplateContent(
             @Size(max = 4000) String chiefComplaints,
             @Size(max = 8000) String examination,
+            @Size(max = 4000) String treatmentGiven,
             @Size(max = 4000) String advice,
             @Size(max = 20) List<@Valid DiagnosisEntry> diagnoses,
             @Size(max = 40) List<@Valid RxItem> prescription,

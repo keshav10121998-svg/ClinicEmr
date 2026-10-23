@@ -55,7 +55,12 @@ public final class HistoryDtos {
     public record VitalValue(String code, String display, BigDecimal value, String unit, Instant observedAt) {
     }
 
-    public record LastVisit(UUID encounterId, Instant date, String doctorName, String diagnoses) {
+    /**
+     * The patient's most recent signed visit at this clinic: when it was (date and time), what was found, what
+     * treatment was given and which medicines were prescribed. Any of these may be empty.
+     */
+    public record LastVisit(UUID encounterId, Instant date, String doctorName, String diagnoses, String treatmentGiven,
+                            List<String> medicines) {
     }
 
     public record PatientSummary(PatientView patient, AllergyList allergies, List<ActiveProblem> activeProblems,

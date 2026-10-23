@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api';
 import { useSession } from '../session';
 import type { AllergyList, Patient, PatientSummary } from '../types';
-import { ageSex, date } from '../format';
+import { ageSex, date, dateTime } from '../format';
 
 export function PatientHeader({ patient, allergies }: { patient: Patient; allergies?: AllergyList }) {
   return (
@@ -118,6 +118,33 @@ export function AllergyEditor({ patientId, allergies, onChange }:
         </label>
         <div className="row" style={{ alignSelf: 'end' }}><button>Add allergy</button></div>
       </form>
+    </div>
+  );
+}
+
+/** The patient's last visit at this clinic: when, who, findings, treatment given and medicines. */
+export function LastVisitCard({ lastVisit, onOpen }:
+  { lastVisit: NonNullable<PatientSummary['lastVisit']>; onOpen?: () => void }) {
+  return (
+    <div className="card tight">
+      <div className="section-title">
+        <h3>Last visit</h3>
+        {onOpen && <button className="link small" onClick={onOpen}>Open</button>}
+      </div>
+      <div><b>{dateTime(lastVisit.date)}</b> <span className="muted">· {lastVisit.doctorName}</span></div>
+      {lastVisit.diagnoses && <div className="small"><span className="muted">Diagnosis:</span> {lastVisit.diagnoses}</div>}
+      {lastVisit.treatmentGiven && <div className="small"><span className="muted">Treatment:</span> {lastVisit.treatmentGiven}</div>}
+      {lastVisit.medicines.length > 0 && (
+        <div className="small">
+          <span className="muted">Medicines:</span>
+          <ul style={{ margin: '2px 0 0', paddingLeft: 18 }}>
+            {lastVisit.medicines.map((m, i) => <li key={i}>{m}</li>)}
+          </ul>
+        </div>
+      )}
+      {!lastVisit.diagnoses && !lastVisit.treatmentGiven && lastVisit.medicines.length === 0 && (
+        <div className="small muted">No diagnosis, treatment or medicines recorded.</div>
+      )}
     </div>
   );
 }

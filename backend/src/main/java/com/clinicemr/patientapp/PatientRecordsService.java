@@ -81,7 +81,8 @@ public class PatientRecordsService {
         SignedSnapshot s = latestSnapshot(requireProfile(p, profileId), encounterId);
         EncounterContent c = s.content();
         EncounterContent shown = new EncounterContent(c.chiefComplaints(), c.historyOfPresentIllness(), c.pastHistory(),
-                c.examination(), c.advice(), null, c.vitals(), c.diagnoses(), c.prescription(), c.investigations(), c.followUp());
+                c.examination(), c.treatmentGiven(), c.advice(), null, c.vitals(), c.diagnoses(), c.prescription(),
+                c.investigations(), c.followUp());
         return new VisitDetail(s.encounterId(), s.clinic().name(), s.doctor().name(), s.doctor().qualifications(),
                 s.startedAt(), s.version(), s.version() > 1, shown);
     }

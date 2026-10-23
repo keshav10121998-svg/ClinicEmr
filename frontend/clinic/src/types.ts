@@ -62,7 +62,7 @@ export interface RxItem {
   drugDisplay: string;
   genericName?: string;
   dose?: string;
-  frequency: string;
+  frequency?: string;
   route?: string;
   timing?: string;
   durationDays?: number;
@@ -80,6 +80,7 @@ export interface EncounterContent {
   historyOfPresentIllness?: string;
   pastHistory?: string;
   examination?: string;
+  treatmentGiven?: string;
   advice?: string;
   privateNote?: string;
   vitals?: Vitals;
@@ -127,6 +128,8 @@ export interface EncounterListItem {
   doctorName: string;
   currentVersion: number;
   diagnoses: string;
+  treatmentGiven?: string;
+  medicines: string;
   prescriptionLines: number;
 }
 
@@ -165,7 +168,7 @@ export interface PatientSummary {
     prescribedBy: string;
   }[];
   latestVitals: { code: string; display: string; value: number; unit: string; observedAt: string }[];
-  lastVisit?: { encounterId: string; date: string; doctorName: string; diagnoses: string };
+  lastVisit?: { encounterId: string; date: string; doctorName: string; diagnoses: string; treatmentGiven?: string; medicines: string[] };
 }
 
 export interface DiagnosisOption {

@@ -29,7 +29,7 @@ export interface RxItem {
   drugDisplay: string;
   genericName?: string;
   dose?: string;
-  frequency: string;
+  frequency?: string;
   timing?: string;
   durationDays?: number;
   longTerm?: boolean;
@@ -47,6 +47,7 @@ export interface VisitDetail {
   content: {
     chiefComplaints?: string;
     examination?: string;
+    treatmentGiven?: string;
     advice?: string;
     vitals?: Record<string, number>;
     diagnoses: { code?: string; display: string }[];

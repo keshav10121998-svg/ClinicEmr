@@ -82,10 +82,16 @@ Hindi and regional-language UI. Uploads abandoned midway stay as unfinished rows
 - **Draft:** the doctor starts a visit; the doctor (or a nurse) autosaves the whole visit body. Each save sends
   the `baseVersion` it last saw; a stale save gets `409 DRAFT_VERSION_CONFLICT`. Drafts aren't validated, so
   half-typed entries are kept.
-- **Sign:** only the visit's doctor can sign. Signing validates the visit (at least one diagnosis, complete
-  prescription lines, follow-up after the visit date), stores an immutable snapshot with a SHA-256 hash
-  (including patient, clinic and doctor details at that moment), and writes the structured rows: notes,
-  LOINC-coded vitals, diagnoses, prescription, investigations, follow-up.
+- **Everything is optional:** diagnosis, treatment given, medicines and every other section. A visit can be
+  just a dressing, just a prescription, or a full consultation. A medicine line needs only the medicine's name;
+  dose, frequency, timing and duration are optional. The only rule is that a visit can't be signed empty.
+- **Sign:** only the visit's doctor can sign. Signing checks the visit isn't empty and the follow-up is after
+  the visit date, stores an immutable snapshot with a SHA-256 hash (including patient, clinic and doctor details
+  at that moment), and writes the structured rows: notes, treatment given, LOINC-coded vitals, diagnoses,
+  prescription, investigations, follow-up.
+- **Visit history:** every visit keeps its visit time. The patient page shows the **last visit** (date and time,
+  doctor, diagnosis, treatment given, each medicine with dose, frequency and duration) and a history table with
+  the same for every visit. The patient app and shared history show visit time and treatment too.
 - **Amend:** signed visits are never edited. The doctor submits corrected content and a reason; this creates
   version 2, 3… with the list of changed sections. Earlier versions stay in `encounter_version`.
 - **Prescription PDF:** rendered from the latest signed snapshot, so reprints match what was signed. Shows the

@@ -96,7 +96,7 @@ export function SharedHistoryPanel({ patientId }: { patientId: string }) {
             <div key={e.encounterId} className="card tight" style={{ background: 'var(--surface-2)' }}>
               <button className="link" style={{ textAlign: 'left', padding: 0 }} aria-expanded={open === e.encounterId}
                       onClick={() => setOpen(open === e.encounterId ? undefined : e.encounterId)}>
-                <b>{date(e.date)}</b> · {e.clinicName} · {e.doctorName}
+                <b>{dateTime(e.date)}</b> · {e.clinicName} · {e.doctorName}
                 {e.version > 1 && <span className="chip" style={{ marginLeft: 6 }}>amended</span>}
               </button>
               <div className="small">{e.content.diagnoses.map((d) => d.display).join('; ')}</div>
@@ -104,6 +104,7 @@ export function SharedHistoryPanel({ patientId }: { patientId: string }) {
                 <dl className="signed-view" style={{ margin: 0 }}>
                   {e.content.chiefComplaints && <><dt>Complaints</dt><dd>{e.content.chiefComplaints}</dd></>}
                   {e.content.examination && <><dt>Examination</dt><dd>{e.content.examination}</dd></>}
+                  {e.content.treatmentGiven && <><dt>Treatment given</dt><dd>{e.content.treatmentGiven}</dd></>}
                   {e.content.prescription.length > 0 && (
                     <><dt>Rx</dt><dd>{e.content.prescription.map((r, i) => (
                       <div key={i}>{i + 1}. <b>{r.drugDisplay}</b> {[r.dose, r.frequency, r.timing].filter(Boolean).join(' · ')}

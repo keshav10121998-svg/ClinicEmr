@@ -138,19 +138,46 @@ public class SummaryService {
     }
 
     Optional<LastVisit> lastVisit(long profileId, long clinicId) {
-        return jdbc.sql("""
+        record Head(UUID encounterId, Instant date, String doctorName, String diagnoses, String treatmentGiven) {
+        }
+        Optional<Head> head = jdbc.sql("""
                 SELECT e.id AS encounter_id, e.started_at AS date, s.name AS doctor_name,
                        coalesce((SELECT string_agg(d.display, '; ' ORDER BY d.line_no) FROM diagnosis d
-                                  WHERE d.encounter_id = e.id), '') AS diagnoses
-                  FROM encounter e JOIN staff_user s ON s.id = e.doctor_id
+                                  WHERE d.encounter_id = e.id), '') AS diagnoses,
+                       n.treatment_given
+                  FROM encounter e
+                  JOIN staff_user s ON s.id = e.doctor_id
+                  LEFT JOIN encounter_note n ON n.encounter_id = e.id
                  WHERE e.profile_id = :profileId AND e.clinic_id = :clinicId AND e.status = 'SIGNED'
                  ORDER BY e.started_at DESC
                  LIMIT 1
                 """)
                 .param("profileId", profileId)
                 .param("clinicId", clinicId)
-                .query(LastVisit.class)
+                .query(Head.class)
                 .optional();
+        return head.map(h -> new LastVisit(h.encounterId(), h.date(), h.doctorName(), h.diagnoses(), h.treatmentGiven(),
+                medicineLines(h.encounterId())));
+    }
+
+    /** Medicines prescribed in one visit as readable lines, e.g. "Amoxicillin 500 mg capsule · 1-1-1 · after food · 7 days". */
+    List<String> medicineLines(UUID encounterId) {
+        return jdbc.sql("""
+                SELECT pi.drug_display, pi.dose, pi.frequency, pi.timing, pi.duration_days, pi.long_term
+                  FROM prescription_item pi JOIN prescription p ON p.id = pi.prescription_id
+                 WHERE p.encounter_id = :id ORDER BY pi.line_no
+                """)
+                .param("id", encounterId)
+                .query((rs, n) -> {
+                    Integer days = (Integer) rs.getObject("duration_days", Integer.class);
+                    String duration = rs.getBoolean("long_term") ? "continue"
+                            : days == null ? null : days + (days == 1 ? " day" : " days");
+                    return java.util.stream.Stream.of(rs.getString("drug_display"), rs.getString("dose"),
+                                    rs.getString("frequency"), rs.getString("timing"), duration)
+                            .filter(x -> x != null && !x.isBlank())
+                            .collect(java.util.stream.Collectors.joining(" · "));
+                })
+                .list();
     }
 
     /** Up to the last 30 readings per vital, oldest first, ready for charts. */

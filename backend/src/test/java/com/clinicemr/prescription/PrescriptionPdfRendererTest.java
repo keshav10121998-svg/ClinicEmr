@@ -21,7 +21,7 @@ class PrescriptionPdfRendererTest {
     static SignedSnapshot sample(int version, String reason, String advice) {
         EncounterContent content = new EncounterContent(
                 "Fever 3 days, sore throat", null, null, "Throat congested",
-                advice, "Patient anxious about dengue <private>",
+                "Nebulisation given in clinic", advice, "Patient anxious about dengue <private>",
                 new EncounterContent.Vitals(130, 85, 96, new BigDecimal("101.20"), 97, new BigDecimal("68"), null, null, null),
                 List.of(new EncounterContent.DiagnosisEntry("ICD10", "J02.9", "Acute pharyngitis, unspecified", "PRIMARY", false),
                         new EncounterContent.DiagnosisEntry("ICD10", "E11.9", "Type 2 diabetes mellitus without complications", "SECONDARY", true)),
@@ -45,6 +45,19 @@ class PrescriptionPdfRendererTest {
         assertThat(html).contains("Dr. Asha Mehta").contains("Reg. No. KMC-12345").contains("76 yrs (approx.) / Female");
         assertThat(html).contains("BP 130/85 mmHg").contains("Temp 101.2 °F").contains("Continue");
         assertThat(html).doesNotContain("Amended");
+        assertThat(html).contains("Treatment given").contains("Nebulisation given in clinic");
+    }
+
+    @Test
+    void medicinesWithoutFrequencyOrDurationPrintBlank() {
+        var bare = new EncounterContent.RxItem(null, "Antacid syrup", null, null, null, null, null, null, false, null);
+        assertThat(PrescriptionPdfRenderer.durationLabel(bare)).isEmpty();
+        SignedSnapshot s = sample(1, null, null);
+        SignedSnapshot withBare = new SignedSnapshot(s.encounterId(), 1, s.visitType(), s.startedAt(), s.signedAt(), null,
+                s.patient(), s.clinic(), s.doctor(),
+                new EncounterContent(null, null, null, null, null, null, null, null, List.of(), List.of(bare), List.of(), null));
+        assertThat(renderer.html(withBare, PrescriptionPdfRenderer.Paper.A5)).contains("Antacid syrup").doesNotContain("null");
+        assertThat(new String(renderer.render(withBare, PrescriptionPdfRenderer.Paper.A5), 0, 5)).isEqualTo("%PDF-");
     }
 
     @Test

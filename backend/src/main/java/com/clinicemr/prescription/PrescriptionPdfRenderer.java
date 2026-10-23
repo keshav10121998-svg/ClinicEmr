@@ -121,6 +121,8 @@ public class PrescriptionPdfRenderer {
             }
         }
 
+        section(h, "Treatment given", c.treatmentGiven());
+
         if (!c.prescription().isEmpty()) {
             h.append("<h3>Rx</h3><table class=\"rx\"><tr><th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th>")
                     .append("<th>When</th><th>Duration</th></tr>");
@@ -134,9 +136,9 @@ public class PrescriptionPdfRenderer {
                     h.append("<br/><span class=\"note\">").append(esc(r.instructions())).append("</span>");
                 }
                 h.append("</td><td>").append(esc(nz(r.dose())))
-                        .append("</td><td>").append(esc(r.frequency()))
+                        .append("</td><td>").append(esc(nz(r.frequency())))
                         .append("</td><td>").append(esc(nz(r.timing())))
-                        .append("</td><td>").append(esc(r.longTerm() ? "Continue" : r.durationDays() + (r.durationDays() == 1 ? " day" : " days")))
+                        .append("</td><td>").append(esc(durationLabel(r)))
                         .append("</td></tr>");
             }
             h.append("</table>");
@@ -195,6 +197,16 @@ public class PrescriptionPdfRenderer {
         if (v.heightCm() != null) parts.add("Ht " + plain(v.heightCm()) + " cm");
         if (v.bloodGlucoseMgDl() != null) parts.add("RBS " + plain(v.bloodGlucoseMgDl()) + " mg/dL");
         return String.join("  ·  ", parts);
+    }
+
+    static String durationLabel(RxItem r) {
+        if (r.longTerm()) {
+            return "Continue";
+        }
+        if (r.durationDays() == null) {
+            return "";
+        }
+        return r.durationDays() + (r.durationDays() == 1 ? " day" : " days");
     }
 
     private static String plain(BigDecimal d) {

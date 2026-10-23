@@ -7,7 +7,7 @@ import type {
   Template, Vitals,
 } from '../types';
 import { Typeahead, type Option } from '../components/Typeahead';
-import { PatientHeader, SummaryPanel } from '../components/PatientPanels';
+import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { addDays, date, dateTime, todayIst } from '../format';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'conflict' | 'error';
@@ -264,14 +264,11 @@ export function VisitPage() {
 
       <div className="visit-layout">
         <aside className="sticky" style={{ display: 'grid', gap: 16 }}>
-          <SummaryPanel summary={summary} />
           {summary.lastVisit && summary.lastVisit.encounterId !== encounter.id && (
-            <div className="card tight">
-              <h3>Last visit</h3>
-              <div>{date(summary.lastVisit.date)} · {summary.lastVisit.doctorName}</div>
-              <div className="muted small">{summary.lastVisit.diagnoses}</div>
-            </div>
+            <LastVisitCard lastVisit={summary.lastVisit}
+                           onOpen={async () => { await flush(); navigate(`/visits/${summary.lastVisit!.encounterId}`); }} />
           )}
+          <SummaryPanel summary={summary} />
         </aside>
 
         {signed && !amending ? (
@@ -345,9 +342,13 @@ export function VisitPage() {
                 )}
               </div>
 
+              <label className="field">Treatment given (optional: injection, dressing, nebulisation, procedure…)
+                <textarea id="treatment" rows={2} value={content.treatmentGiven ?? ''} onChange={set('treatmentGiven')} />
+              </label>
+
               <div style={{ display: 'grid', gap: 8 }}>
                 <div className="section-title">
-                  <h3>Rx</h3>
+                  <h3>Rx (optional)</h3>
                   {editingDraft && !amending && <button type="button" className="link" onClick={repeatLastPrescription}>Repeat last prescription</button>}
                 </div>
                 {(encounter.warnings ?? []).map((w, i) => (
@@ -427,14 +428,16 @@ function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; ca
         </div>
       </div>
       <p className="muted small">
-        Signed {dateTime(encounter.signedAt)}
+        Visit {dateTime(encounter.startedAt)} · signed {dateTime(encounter.signedAt)}
         {latest && latest.version > 1 && <> · amended {dateTime(latest.signedAt)} ({latest.amendmentReason})</>}
       </p>
       <dl className="signed-view" style={{ margin: 0 }}>
         {c.chiefComplaints && <><dt>Complaints</dt><dd>{c.chiefComplaints}</dd></>}
         {c.examination && <><dt>Examination</dt><dd>{c.examination}</dd></>}
-        <dt>Diagnosis</dt>
-        <dd>{c.diagnoses.map((d) => `${d.display}${d.code ? ` (${d.code})` : ''}`).join('; ')}</dd>
+        {c.diagnoses.length > 0 && (
+          <><dt>Diagnosis</dt><dd>{c.diagnoses.map((d) => `${d.display}${d.code ? ` (${d.code})` : ''}`).join('; ')}</dd></>
+        )}
+        {c.treatmentGiven && <><dt>Treatment given</dt><dd>{c.treatmentGiven}</dd></>}
         {c.prescription.length > 0 && (
           <>
             <dt>Rx</dt>
@@ -448,7 +451,7 @@ function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; ca
                         <td>{i + 1}</td>
                         <td><b>{r.drugDisplay}</b>{r.instructions && <div className="small muted">{r.instructions}</div>}</td>
                         <td>{r.dose}</td><td>{r.frequency}</td><td>{r.timing}</td>
-                        <td>{r.longTerm ? 'Continue' : `${r.durationDays} days`}</td>
+                        <td>{r.longTerm ? 'Continue' : r.durationDays ? `${r.durationDays} days` : ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -542,5 +545,5 @@ function rxKey(r: RxItem) {
 function fieldLabel(path: string) {
   const m = path.match(/^prescription\[(\d+)\]\.(\w+)$/);
   if (m) return `Medicine ${Number(m[1]) + 1} ${m[2] === 'durationDays' ? 'duration' : m[2]}`;
-  return ({ diagnoses: 'Diagnosis', 'followUp.dueDate': 'Follow-up date' } as Record<string, string>)[path] ?? path;
+  return ({ visit: 'Visit', diagnoses: 'Diagnosis', 'followUp.dueDate': 'Follow-up date' } as Record<string, string>)[path] ?? path;
 }

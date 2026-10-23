@@ -175,6 +175,7 @@ public class SharedHistoryService {
     private static EncounterContent withoutPrivateNote(SignedSnapshot s) {
         EncounterContent c = s.content();
         return new EncounterContent(c.chiefComplaints(), c.historyOfPresentIllness(), c.pastHistory(), c.examination(),
-                c.advice(), null, c.vitals(), c.diagnoses(), c.prescription(), c.investigations(), c.followUp());
+                c.treatmentGiven(), c.advice(), null, c.vitals(), c.diagnoses(), c.prescription(), c.investigations(),
+                c.followUp());
     }
 }

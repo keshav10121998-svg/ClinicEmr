@@ -15,14 +15,15 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Everything a doctor records in one visit. Drafts may be incomplete; the constraints are enforced when the
- * visit is signed or amended.
+ * Everything a doctor records in one visit. Every section is optional: a visit can be just a dressing change, just
+ * a prescription, or a full consultation. Size limits and line-level rules are enforced when the visit is signed.
  */
 public record EncounterContent(
         @Size(max = 4000) String chiefComplaints,
         @Size(max = 8000) String historyOfPresentIllness,
         @Size(max = 8000) String pastHistory,
         @Size(max = 8000) String examination,
+        @Size(max = 4000) String treatmentGiven,
         @Size(max = 4000) String advice,
         @Size(max = 8000) String privateNote,
         @Valid Vitals vitals,
@@ -38,7 +39,20 @@ public record EncounterContent(
     }
 
     public static EncounterContent empty() {
-        return new EncounterContent(null, null, null, null, null, null, null, null, null, null, null);
+        return new EncounterContent(null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    /** True if anything at all was recorded, so an empty visit can't be signed. */
+    public boolean hasAnyContent() {
+        boolean text = java.util.stream.Stream.of(chiefComplaints, historyOfPresentIllness, pastHistory, examination,
+                        treatmentGiven, advice, privateNote)
+                .anyMatch(s -> s != null && !s.isBlank());
+        boolean vitalsRecorded = vitals != null && java.util.stream.Stream.of(vitals.bpSystolic(), vitals.bpDiastolic(),
+                        vitals.pulse(), vitals.temperatureF(), vitals.spo2(), vitals.weightKg(), vitals.heightCm(),
+                        vitals.respiratoryRate(), vitals.bloodGlucoseMgDl())
+                .anyMatch(java.util.Objects::nonNull);
+        return text || vitalsRecorded || !diagnoses.isEmpty() || !prescription.isEmpty() || !investigations.isEmpty()
+                || followUp != null;
     }
 
     public record Vitals(
@@ -66,7 +80,7 @@ public record EncounterContent(
             @NotBlank @Size(max = 200) String drugDisplay,
             @Size(max = 200) String genericName,
             @Size(max = 60) String dose,
-            @NotBlank @Size(max = 60) String frequency,
+            @Size(max = 60) String frequency,
             @Size(max = 40) String route,
             @Size(max = 60) String timing,
             @Min(1) @Max(365) Integer durationDays,

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openAuthed } from '../api';
 import type { VisitDetail } from '../types';
-import { date } from '../format';
+import { date, dateTime } from '../format';
 
 export function VisitPage() {
   const { profileId, encounterId } = useParams();
@@ -37,16 +37,16 @@ export function VisitPage() {
         {visit && c && (
           <>
             <div>
-              <h1>{date(visit.date)}</h1>
+              <h1>{dateTime(visit.date)}</h1>
               <p className="muted">{visit.clinicName} · {visit.doctorName} <span className="small">({visit.doctorQualifications})</span></p>
               {visit.amended && <p className="small muted">The doctor updated this record after the visit. This is the latest version.</p>}
             </div>
             <button className="primary block" onClick={download}>Download prescription (PDF)</button>
             <div className="card">
               <dl className="visit" style={{ margin: 0 }}>
-                <dt>Diagnosis</dt>
-                <dd>{c.diagnoses.map((d) => d.display).join('; ')}</dd>
+                {c.diagnoses.length > 0 && <><dt>Diagnosis</dt><dd>{c.diagnoses.map((d) => d.display).join('; ')}</dd></>}
                 {c.chiefComplaints && <><dt>Complaints</dt><dd>{c.chiefComplaints}</dd></>}
+                {c.treatmentGiven && <><dt>Treatment given</dt><dd>{c.treatmentGiven}</dd></>}
                 {c.prescription.length > 0 && (
                   <>
                     <dt>Medicines</dt>
