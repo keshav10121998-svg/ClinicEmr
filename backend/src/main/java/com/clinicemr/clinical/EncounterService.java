@@ -16,6 +16,8 @@ import java.util.UUID;
 
 import com.clinicemr.clinical.EncounterDtos.AmendRequest;
 import com.clinicemr.clinical.EncounterDtos.ApplyTemplateRequest;
+import com.clinicemr.access.AccessLog;
+import com.clinicemr.access.ClinicalAccessPolicy;
 import com.clinicemr.history.AllergyService;
 import com.clinicemr.productivity.FavouriteService;
 import com.clinicemr.productivity.TemplateService;
@@ -61,10 +63,15 @@ public class EncounterService {
     private final AllergyService allergies;
     private final FavouriteService favourites;
     private final TemplateService templates;
+    private final ClinicalAccessPolicy accessPolicy;
+    private final AccessLog accessLog;
 
     public EncounterService(JdbcClient jdbc, ObjectMapper json, Validator validator, PatientService patients,
                             ClinicalRowsWriter rows, SnapshotHasher hasher, AuditService audit,
-                            AllergyService allergies, FavouriteService favourites, TemplateService templates) {
+                            AllergyService allergies, FavouriteService favourites, TemplateService templates,
+                            ClinicalAccessPolicy accessPolicy, AccessLog accessLog) {
+        this.accessPolicy = accessPolicy;
+        this.accessLog = accessLog;
         this.jdbc = jdbc;
         this.json = json;
         this.validator = validator;
@@ -445,10 +452,32 @@ public class EncounterService {
                 .toList();
         UUID patientPublicId = patients.getByProfileId(ctx, e.profileId()).publicId();
         EncounterContent content = fromJson(e.draft());
-        List<PrescriptionSafety.Warning> warnings =
-                PrescriptionSafety.check(content, allergies.activeSubstances(e.profileId(), e.clinicId()));
+        List<PrescriptionSafety.Warning> warnings = warnings(ctx, e, content);
         return new EncounterView(e.id(), patientPublicId, e.status(), e.visitType(), new DoctorRef(e.doctorId(), e.doctorName()),
                 e.startedAt(), e.signedAt(), e.draftVersion(), e.currentVersion(), content, versions, warnings);
+    }
+
+    /**
+     * Prescribing warnings against this clinic's allergies and, when the patient has shared their visits with this
+     * clinic, allergies recorded elsewhere. A warning based on another clinic's record counts as a read of shared
+     * data and is written to the patient's access log.
+     */
+    private List<PrescriptionSafety.Warning> warnings(ClinicContext ctx, EncounterRow e, EncounterContent content) {
+        if (content.prescription().isEmpty()) {
+            return List.of();
+        }
+        List<PrescriptionSafety.AllergyRef> refs = new ArrayList<>();
+        allergies.activeSubstances(e.profileId(), e.clinicId())
+                .forEach(s -> refs.add(new PrescriptionSafety.AllergyRef(s, null)));
+        var access = accessPolicy.effectiveAccess(ctx, e.profileId()).filter(a -> a.allows("VISITS"));
+        access.ifPresent(a -> refs.addAll(allergies.activeElsewhere(e.profileId(), e.clinicId())));
+
+        List<PrescriptionSafety.Warning> warnings = PrescriptionSafety.check(content, refs);
+        if (access.isPresent() && warnings.stream().anyMatch(w -> w.source() != null)) {
+            accessLog.staffReadOnce(ctx, e.profileId(), "CHECK_SHARED_ALLERGIES", "encounter", e.id().toString(),
+                    access.get().primaryGrant());
+        }
+        return warnings;
     }
 
     private List<String> changedFrom(String diff) {

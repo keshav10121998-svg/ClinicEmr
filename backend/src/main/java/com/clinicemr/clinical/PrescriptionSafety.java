@@ -21,7 +21,11 @@ public final class PrescriptionSafety {
     private PrescriptionSafety() {
     }
 
-    public record Warning(String type, String message, Integer line) {
+    /** {@code source} is the clinic name for allergies recorded at another clinic, or null for this clinic. */
+    public record Warning(String type, String message, Integer line, String source) {
+    }
+
+    public record AllergyRef(String substance, String source) {
     }
 
     /** Allergy terms (as patients and doctors write them) and the drug names they cover. */
@@ -35,13 +39,13 @@ public final class PrescriptionSafety {
                     "cefadroxil"),
             "aspirin", List.of("aspirin", "acetylsalicylic"));
 
-    public static List<Warning> check(EncounterContent content, List<String> allergySubstances) {
+    public static List<Warning> check(EncounterContent content, List<AllergyRef> allergies) {
         List<Warning> warnings = new ArrayList<>();
         List<RxItem> items = content.prescription();
 
-        Map<String, Set<String>> allergyKeywords = new HashMap<>();
-        for (String substance : allergySubstances) {
-            String s = substance.toLowerCase(Locale.ROOT).trim();
+        Map<AllergyRef, Set<String>> allergyKeywords = new java.util.LinkedHashMap<>();
+        for (AllergyRef allergy : allergies) {
+            String s = allergy.substance().toLowerCase(Locale.ROOT).trim();
             Set<String> keywords = new LinkedHashSet<>();
             keywords.add(s);
             ALLERGY_CLASSES.forEach((term, drugs) -> {
@@ -49,7 +53,7 @@ public final class PrescriptionSafety {
                     keywords.addAll(drugs);
                 }
             });
-            allergyKeywords.put(substance, keywords);
+            allergyKeywords.put(allergy, keywords);
         }
 
         Map<String, Integer> firstLineByKey = new HashMap<>();
@@ -62,11 +66,13 @@ public final class PrescriptionSafety {
             String text = (item.drugDisplay() + " " + (item.genericName() == null ? "" : item.genericName()))
                     .toLowerCase(Locale.ROOT);
 
-            allergyKeywords.forEach((substance, keywords) -> {
+            allergyKeywords.forEach((allergy, keywords) -> {
                 if (keywords.stream().anyMatch(text::contains)) {
+                    String where = allergy.source() == null ? "" : " (recorded at " + allergy.source() + ")";
                     warnings.add(new Warning("ALLERGY",
-                            "Line " + line + " (" + item.drugDisplay() + ") may conflict with the recorded allergy: " + substance + ".",
-                            line));
+                            "Line " + line + " (" + item.drugDisplay() + ") may conflict with the recorded allergy: "
+                                    + allergy.substance() + where + ".",
+                            line, allergy.source()));
                 }
             });
 
@@ -76,7 +82,7 @@ public final class PrescriptionSafety {
             Integer first = firstLineByKey.putIfAbsent(key, line);
             if (first != null) {
                 warnings.add(new Warning("DUPLICATE_MEDICINE",
-                        "Line " + line + " repeats a medicine already on line " + first + ".", line));
+                        "Line " + line + " repeats a medicine already on line " + first + ".", line, null));
             }
         }
         return warnings;

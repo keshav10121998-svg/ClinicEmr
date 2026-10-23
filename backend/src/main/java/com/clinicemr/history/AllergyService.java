@@ -66,7 +66,22 @@ public class AllergyService {
                 review.map(Review::reviewedAt).orElse(null), items);
     }
 
-    /** Active allergy substances, for prescription warnings. */
+    /**
+     * Active allergies recorded at other clinics, labelled with the clinic. Callers must check that the patient
+     * shared their visits with the viewing clinic first.
+     */
+    public List<com.clinicemr.clinical.PrescriptionSafety.AllergyRef> activeElsewhere(long profileId, long clinicId) {
+        return jdbc.sql("""
+                SELECT a.substance, c.name AS source FROM allergy a JOIN clinic c ON c.id = a.clinic_id
+                 WHERE a.profile_id = :profileId AND a.clinic_id <> :clinicId AND a.status = 'ACTIVE'
+                """)
+                .param("profileId", profileId)
+                .param("clinicId", clinicId)
+                .query(com.clinicemr.clinical.PrescriptionSafety.AllergyRef.class)
+                .list();
+    }
+
+    /** Active allergy substances recorded at this clinic, for prescription warnings. */
     public List<String> activeSubstances(long profileId, long clinicId) {
         return jdbc.sql("SELECT substance FROM allergy WHERE profile_id = :profileId AND clinic_id = :clinicId AND status = 'ACTIVE'")
                 .param("profileId", profileId)

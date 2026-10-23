@@ -16,6 +16,24 @@ public class AccessLog {
         this.jdbc = jdbc;
     }
 
+    /** Logs a read only the first time for this entity under this grant (for reads that repeat, like autosave). */
+    public void staffReadOnce(ClinicContext ctx, long profileId, String action, String entityType, String entityId, UUID grantId) {
+        boolean logged = jdbc.sql("""
+                SELECT EXISTS (SELECT 1 FROM access_log WHERE profile_id = :profileId AND clinic_id = :clinicId
+                                AND action = :action AND entity_id = :entityId AND via_grant_id = :grantId)
+                """)
+                .param("profileId", profileId)
+                .param("clinicId", ctx.clinicId())
+                .param("action", action)
+                .param("entityId", entityId)
+                .param("grantId", grantId)
+                .query(Boolean.class)
+                .single();
+        if (!logged) {
+            staffRead(ctx, profileId, action, entityType, entityId, grantId);
+        }
+    }
+
     public void staffRead(ClinicContext ctx, long profileId, String action, String entityType, String entityId, UUID grantId) {
         jdbc.sql("""
                 INSERT INTO access_log (profile_id, clinic_id, actor_type, actor_id, action, entity_type, entity_id, via_grant_id)

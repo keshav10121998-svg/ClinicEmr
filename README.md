@@ -22,6 +22,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Favourites | `GET /api/v1/me/favourites?kind=DIAGNOSIS\|DRUG\|INVESTIGATION&q=`, `POST /api/v1/me/favourites/pin` |
 | Cross-clinic access (clinic) | `POST /api/v1/clinic/access-requests` (`phone` or `patientId`), `GET …/{id}`, `POST …/{id}/verify`, `POST …/{id}/grant`, `GET /api/v1/clinic/patients/{id}/access`, `GET …/shared-history`, `GET …/shared-history/documents/{docId}` |
 | Patient app | `POST /api/v1/auth/patient/otp`, `POST /api/v1/auth/patient/otp/verify`, `GET /api/v1/patient/profiles`, `GET /api/v1/patient/access-requests`, `POST …/{id}/approve`, `POST …/{id}/deny`, `GET /api/v1/patient/access`, `DELETE /api/v1/patient/access/{grantId}`, `GET /api/v1/patient/access-log` |
+| Patient records | `GET /api/v1/patient/profiles/{id}/visits`, `GET …/visits/{encounterId}`, `GET …/visits/{encounterId}/prescription.pdf`, `GET/POST …/documents`, `POST …/documents/{docId}/complete`, `GET/DELETE …/documents/{docId}` |
 
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
@@ -95,6 +96,26 @@ per staff member and 5 per phone number per hour.
 The patient app signs in by phone OTP. On first sign-in, every profile registered with that number at any clinic
 becomes the account's own.
 
+### Patient app records
+
+For every profile the account manages, the patient sees:
+
+- **Visits from all clinics:** clinic, doctor, date, diagnoses, and the full visit as signed (latest version,
+  marked if amended), without the doctor's private note. The **prescription PDF** for any visit can be downloaded.
+- **Documents from all clinics and their own uploads.** Patients can upload old reports, prescriptions and
+  discharge summaries. These are labelled self-uploaded and never marked verified. Patients can delete their own
+  uploads (files are removed from storage) but not documents from a clinic, which are part of that clinic's
+  records. A patient's uploads reach a clinic only through a grant that includes `DOCUMENTS`.
+
+Another account asking for a profile it doesn't manage gets `404`, so profiles can't be probed.
+
+### Allergies from other clinics in prescribing warnings
+
+When the patient has shared their **visits** with a clinic, prescribing warnings there also check allergies
+recorded at other clinics, labelled "recorded at Clinic A". This uses shared data, so the first such warning on a
+visit is written to the patient's access log (once per visit per grant, so autosaves don't flood it). After the
+patient revokes access, those allergies are no longer used.
+
 **SMS in development:** with no SMS provider configured, messages (including codes) are written to the
 application log, with a warning at startup. Never run like that in production. A DLT-registered provider plugs in
 by adding an `SmsSender` bean.
@@ -103,8 +124,8 @@ The ICD-10 and drug lists in `V3__terminology_seed.sql` are a starter set. Have 
 extended before launch. Prescriptions use the PDF's built-in Latin fonts, so Hindi or other Indian-script
 names need an embedded font (not done yet).
 
-Next up: patient app records (own visits, prescriptions, uploads), merging shared allergies into prescribing
-warnings and the summary, a real SMS provider through the outbox with retries, and the front-end.
+Next up: the front-end (clinic web app, then patient app), shared allergies and medicines in the clinic summary,
+a real SMS provider through the outbox with retries, virus scanning of uploads, and deployment to Oracle Cloud.
 
 ## Run locally
 
