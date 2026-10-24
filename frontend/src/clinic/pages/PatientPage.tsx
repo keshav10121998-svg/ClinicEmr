@@ -4,7 +4,7 @@ import { api, ApiError, openPdf } from '../api';
 import { useSession } from '../session';
 import type { EncounterListItem, Encounter, Patient, PatientSummary } from '../types';
 import { AllergyEditor, LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
-import { dateTime } from '../format';
+import { date, dateTime } from '../format';
 import { SharedHistoryPanel } from '../components/SharedHistoryPanel';
 import { useIsPhone } from '../useIsPhone';
 import { AttachedFiles } from '../components/AttachedFiles';
@@ -62,6 +62,13 @@ export function PatientPage() {
   const history = (
     <div className="card" style={{ alignContent: 'start' }}>
       <h2>Visits at this clinic</h2>
+      {visits.length > 0 && (
+        <div className="visit-stats" aria-label="Visit totals">
+          <div><span className="stat-number">{visits.length}</span><span className="stat-label">{visits.length === 1 ? 'Visit' : 'Total visits'}</span></div>
+          <div><span className="stat-value">{date(visits[visits.length - 1].startedAt)}</span><span className="stat-label">First visit</span></div>
+          <div><span className="stat-value">{date(visits[0].startedAt)}</span><span className="stat-label">Last visit</span></div>
+        </div>
+      )}
       {visits.length === 0 ? <p className="muted">No visits yet.</p> : phone ? (
         <div className="visit-cards">
           {visits.map((v) => (

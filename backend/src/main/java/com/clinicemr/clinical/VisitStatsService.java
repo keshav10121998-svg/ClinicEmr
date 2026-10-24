@@ -33,7 +33,8 @@ public class VisitStatsService {
     }
 
     public record Visitor(UUID encounterId, UUID patientId, String name, String mrn, String gender, Integer ageYears,
-                          String phone, Instant startedAt, String status, String doctorName, String diagnoses) {
+                          String phone, Instant startedAt, String status, String doctorName, String diagnoses,
+                          int visitCount) {
     }
 
     public record VisitorList(Range range, int patients, int visits, boolean truncated, List<Visitor> items) {
@@ -80,11 +81,14 @@ public class VisitStatsService {
         // Diagnoses are clinical detail: front desk sees who came, not why
         boolean clinical = ctx.has(ClinicRole.DOCTOR) || ctx.has(ClinicRole.NURSE);
         record Row(UUID encounterId, UUID publicId, String name, String mrn, String gender, LocalDate dob,
-                   String primaryPhoneE164, Instant startedAt, String status, String doctorName, String diagnoses) {
+                   String primaryPhoneE164, Instant startedAt, String status, String doctorName, String diagnoses,
+                   int visitCount) {
         }
         List<Row> rows = jdbc.sql("""
                 SELECT e.id AS encounter_id, p.public_id, p.name, pi.mrn, p.gender, p.dob, p.primary_phone_e164,
                        e.started_at, e.status, s.name AS doctor_name,
+                       (SELECT count(*) FROM encounter x WHERE x.profile_id = e.profile_id AND x.clinic_id = e.clinic_id
+                           AND x.status = 'SIGNED')::int AS visit_count,
                        CASE WHEN :clinical THEN
                          coalesce(CASE WHEN e.status = 'SIGNED'
                                        THEN (SELECT string_agg(d.display, '; ' ORDER BY d.line_no)
@@ -114,7 +118,7 @@ public class VisitStatsService {
         Count total = count(ctx, range);
         return new VisitorList(range, total.patients(), total.visits(), truncated, shown.stream()
                 .map(r -> new Visitor(r.encounterId(), r.publicId(), r.name(), r.mrn(), r.gender(), PatientDtos.age(r.dob()),
-                        r.primaryPhoneE164(), r.startedAt(), r.status(), r.doctorName(), r.diagnoses()))
+                        r.primaryPhoneE164(), r.startedAt(), r.status(), r.doctorName(), r.diagnoses(), r.visitCount()))
                 .toList());
     }
 

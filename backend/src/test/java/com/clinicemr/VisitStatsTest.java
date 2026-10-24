@@ -78,6 +78,13 @@ class VisitStatsTest extends IntegrationTestBase {
                 .andExpect(status().isOk()));
         assertThat(forDoctor.get("items").get(0).get("diagnoses").asText()).isEqualTo("Viral fever");
         assertThat(forDoctor.get("items").get(0).get("status").asText()).isEqualTo("SIGNED");
+        // Each row carries the patient's finished visits at this clinic, as does the patient list
+        assertThat(forDoctor.get("items").get(0).get("visitCount").asInt()).isEqualTo(1);
+        assertThat(forDoctor.get("items").get(1).get("visitCount").asInt()).isZero();
+        JsonNode recent = body(perform(get("/api/v1/clinic/patients/recent"), desk, clinic, null).andExpect(status().isOk()));
+        for (JsonNode p : recent) {
+            assertThat(p.get("visitCount").asInt()).isEqualTo(p.get("name").asText().equals("Bina Rao") ? 1 : 0);
+        }
 
         JsonNode yesterday = body(perform(get("/api/v1/clinic/visit-stats/visitors?range=yesterday"), doctor, clinic, null)
                 .andExpect(status().isOk()));

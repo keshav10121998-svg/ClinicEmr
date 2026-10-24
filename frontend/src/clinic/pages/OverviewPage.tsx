@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import { useSession } from '../session';
 import type { VisitCount, VisitorList, VisitRange } from '../types';
 import { ageSex } from '../format';
 
@@ -13,8 +12,6 @@ const RANGES = Object.keys(LABELS) as VisitRange[];
 /** How many patients came in, per period. Tap a period to see who they were. */
 export function OverviewPage() {
   const navigate = useNavigate();
-  const { has } = useSession();
-  const clinical = has('DOCTOR', 'NURSE');
   const [params, setParams] = useSearchParams();
   const range = (RANGES.find((r) => r === params.get('range')) ?? 'TODAY') as VisitRange;
   const [counts, setCounts] = useState<VisitCount[]>();
@@ -70,11 +67,12 @@ export function OverviewPage() {
         <div className="patient-list">
           {list?.items.map((v) => (
             <button key={v.encounterId} type="button" className="patient-row visitor-row"
-                    onClick={() => navigate(clinical ? `/visits/${v.encounterId}` : `/patients/${v.patientId}`)}>
+                    onClick={() => navigate(`/patients/${v.patientId}`)}>
               <span className="avatar" aria-hidden="true">{initials(v.name)}</span>
               <span className="patient-name">{v.name}</span>
               <span className="muted small">
                 {[ageSex({ ...v, dobEstimated: false }), v.mrn, v.doctorName].filter(Boolean).join(' · ')}
+                <br /><b className="visit-total">{visitsLabel(v.visitCount)}</b>
                 {v.diagnoses ? <><br /><span style={{ color: 'var(--ink)' }}>{v.diagnoses}</span></> : null}
               </span>
               <span className="small last-visit">
@@ -99,4 +97,8 @@ function visitTime(iso: string, withDate: boolean) {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+function visitsLabel(n: number) {
+  return n === 0 ? 'First visit, not finished yet' : `${n} ${n === 1 ? 'visit' : 'visits'} in total`;
 }

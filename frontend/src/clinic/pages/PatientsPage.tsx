@@ -14,6 +14,7 @@ interface RecentPatient {
   ageYears?: number;
   phone?: string;
   lastVisitAt?: string;
+  visitCount: number;
   registeredAt: string;
 }
 
@@ -93,7 +94,8 @@ export function PatientsPage() {
               <span className="avatar" aria-hidden="true">{initials(p.name)}</span>
               <span className="patient-name">{p.name}</span>
               <span className="muted small">{ageSex(p)} · <span className="mono">{p.mrn}</span>{p.phone ? ` · ${p.phone.replace(/^\+91/, '')}` : ''}</span>
-              <span className="small last-visit">{p.lastVisitAt ? `Last visit ${date(p.lastVisitAt)}` : 'No visits yet'}</span>
+              <span className="small last-visit">{p.lastVisitAt ? `Last visit ${date(p.lastVisitAt)}` : 'No visits yet'}
+                {p.visitCount > 0 && <><br /><b className="visit-total">{p.visitCount} {p.visitCount === 1 ? 'visit' : 'visits'}</b></>}</span>
             </button>
           ))}
         </div>

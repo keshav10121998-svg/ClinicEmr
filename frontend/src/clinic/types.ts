@@ -307,6 +307,7 @@ export interface Visitor {
   status: 'DRAFT' | 'SIGNED';
   doctorName: string;
   diagnoses?: string;
+  visitCount: number;
 }
 
 export interface VisitorList {

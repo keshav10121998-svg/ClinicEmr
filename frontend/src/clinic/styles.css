@@ -273,3 +273,12 @@ details.peek[open] { display: grid; gap: 12px; padding-bottom: 14px; }
   .stat-tile.main .stat-number { font-size: 40px; }
   .stat-number { font-size: 26px; }
 }
+
+/* ----- a patient's visit totals */
+.visit-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.visit-stats > div { display: grid; align-content: center; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.visit-stats > div:first-child { background: var(--accent-soft); border-color: transparent; }
+.visit-stats .stat-number { color: var(--accent); font-size: 26px; }
+.visit-stats .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.visit-stats .stat-label { font-size: 11px; }
+.visit-total { color: var(--accent); font-weight: 600; }

@@ -42,9 +42,10 @@ layout. Clinic screens so far:
 - **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
-  time, and the diagnosis for doctors and nurses. Unfinished visits show as *In progress*; cancelled ones are not
-  counted.
-- **Patients:** the clinic's patients, most recently seen first; tap one to open. Typing only narrows the list.
+  time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished
+  visits show as *In progress*; cancelled ones are not counted.
+- **Patients:** the clinic's patients, most recently seen first, with each one's number of visits; tap one to open.
+  Typing only narrows the list. A patient's page shows total visits, first and last visit, then every visit.
   Registering asks for name, sex, age and mobile; date of birth, ABHA and blood group are optional extras. A
   duplicate warning offers the existing record.
 - **Patient:** header with allergies in red (or "not asked yet"), active problems, current medicines, latest
