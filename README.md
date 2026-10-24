@@ -22,7 +22,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Templates | `GET/POST /api/v1/me/templates`, `PUT/DELETE /api/v1/me/templates/{id}`, `POST /api/v1/clinic/encounters/{id}/apply-template` |
 | Favourites | `GET /api/v1/me/favourites?kind=DIAGNOSIS\|DRUG\|INVESTIGATION&q=`, `POST /api/v1/me/favourites/pin` |
 | Cross-clinic access (clinic) | `POST /api/v1/clinic/access-requests` (`phone` or `patientId`), `GET …/{id}`, `POST …/{id}/verify`, `POST …/{id}/grant`, `GET /api/v1/clinic/patients/{id}/access`, `GET …/shared-history`, `GET …/shared-history/documents/{docId}` |
-| Patient app | `POST /api/v1/auth/patient/otp`, `POST /api/v1/auth/patient/otp/verify`, `GET /api/v1/patient/profiles`, `GET /api/v1/patient/access-requests`, `POST …/{id}/approve`, `POST …/{id}/deny`, `GET /api/v1/patient/access`, `DELETE /api/v1/patient/access/{grantId}`, `GET /api/v1/patient/access-log` |
+| Patient app | `POST /api/v1/auth/patient/pin` (mobile + PIN), `POST /api/v1/auth/patient/code/verify` (mobile + counter code), `POST /api/v1/auth/patient/otp/verify` (code from the QR or SMS), `POST /api/v1/auth/patient/otp` (SMS, needs a provider), `GET /api/v1/patient/account`, `POST /api/v1/patient/pin`, `POST /api/v1/patient/session/renew`, `POST /api/v1/clinic/patients/{id}/app-sign-in-code` (staff), `GET /api/v1/patient/profiles`, `GET /api/v1/patient/access-requests`, `POST …/{id}/approve`, `POST …/{id}/deny`, `GET /api/v1/patient/access`, `DELETE /api/v1/patient/access/{grantId}`, `GET /api/v1/patient/access-log` |
 | Patient records | `GET /api/v1/patient/profiles/{id}/visits`, `GET …/visits/{encounterId}`, `GET …/visits/{encounterId}/prescription.pdf`, `GET/POST …/documents`, `POST …/documents/{docId}/complete`, `GET/DELETE …/documents/{docId}` |
 
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
@@ -85,7 +85,16 @@ The session token is kept in `sessionStorage`, so closing the tab signs out on s
 
 Phone-first screens for patients and families, in the same app under `/my`:
 
-- **Sign in** with mobile number and SMS code. The sign-in lasts 30 days on that phone, until *Sign out*.
+- **Sign in, free (no SMS):**
+  - *First time, or a forgotten PIN:* at the clinic, staff tap **Patient app sign-in code** on the patient's page.
+    A QR and a 6-digit code appear (one use, 15 minutes). The patient scans the QR with their phone camera, which
+    opens the app signed in, or types their mobile number and the code under *I have a code from the clinic*.
+  - The app then asks them to choose a 4–6 digit PIN (easy ones like 1111 or 1234 are refused).
+  - *At home:* mobile number + PIN. Five wrong PINs lock it for 15 minutes. A wrong PIN and an unknown number get
+    the same answer, so the page doesn't reveal who uses the app.
+  - The phone stays signed in for 90 days and renews each time the app opens. Changing the PIN signs out every
+    other phone. *Change PIN* is in the header.
+  - SMS codes still work once an SMS provider is set up (`SmsSender`).
 - **Family switcher:** every profile linked to the number (registered at any clinic, or managed as caregiver).
 - **Visits:** every signed visit from every clinic, newest first. The detail page shows diagnoses, medicines in
   plain words ("for 7 days", "continue until the doctor says"), tests and next visit, marks visits the doctor
@@ -235,8 +244,8 @@ npm run dev
 ```
 
 Open http://localhost:5173. For a clinic, choose **Set up your clinic** and sign in. For a patient, tap
-**Patient / family** and sign in with the mobile number of a patient registered at a clinic. Without an SMS
-provider the code is in the backend log (`[DEV SMS`).
+**Patient / family**. To sign a patient in, open them in the clinic screens, tap **Patient app sign-in code**, and
+scan the QR or type their mobile number and the code; then choose a PIN. Next time, sign in with mobile + PIN.
 
 **One server for everything** (how it is deployed): `mvnw package` builds the web app and packs it into the
 backend jar, so the backend serves the screens and the API from one address:

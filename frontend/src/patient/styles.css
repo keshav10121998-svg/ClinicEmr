@@ -106,3 +106,7 @@ dl.visit dd { margin: 3px 0 0; white-space: pre-wrap; }
 .signin-switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .signin-switch a { padding: 10px 8px; text-align: center; text-decoration: none; color: var(--muted); font-weight: 600; min-height: 44px; display: grid; place-items: center; }
 .signin-switch a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+
+/* ----- sign-in help */
+.hint-box { display: grid; gap: 4px; justify-items: start; padding: 12px; border-radius: var(--radius); background: var(--accent-soft); }
+.hint-box .link { padding: 4px 0; font-weight: 600; }

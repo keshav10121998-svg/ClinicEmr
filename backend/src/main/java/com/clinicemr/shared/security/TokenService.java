@@ -41,15 +41,24 @@ public class TokenService {
 
     public static final String PATIENT_ISSUER = "clinic-emr/patient";
 
-    public IssuedToken issuePatientToken(long accountId, String phoneE164) {
+    /** How long a patient stays signed in on a phone. The app renews it on use, so active patients never sign in again. */
+    public static final java.time.Duration PATIENT_SESSION = java.time.Duration.ofDays(90);
+
+    /**
+     * {@code method} is how they proved who they are ("code" or "pin"); {@code sessionVersion} must match the account's
+     * current one, so changing the PIN signs out every other phone.
+     */
+    public IssuedToken issuePatientToken(long accountId, String phoneE164, String method, int sessionVersion) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(java.time.Duration.ofDays(30));
+        Instant expiresAt = now.plus(PATIENT_SESSION);
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(PATIENT_ISSUER)
                 .subject(String.valueOf(accountId))
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .claim("phone", phoneE164)
+                .claim("amr", method)
+                .claim("sv", sessionVersion)
                 .claim("typ", "patient")
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

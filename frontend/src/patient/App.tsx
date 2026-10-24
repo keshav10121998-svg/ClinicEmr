@@ -9,12 +9,22 @@ import { DocumentsTab } from './pages/DocumentsTab';
 import { SharingTab } from './pages/SharingTab';
 import { VisitPage } from './pages/VisitPage';
 import { PendingRequests } from './components/PendingRequests';
+import { PinForm } from './pages/PinPage';
 
 type Tab = 'visits' | 'documents' | 'sharing';
 
 export function App() {
   const { session } = useSession();
+  const [skippedPin, setSkippedPin] = useState(false);
   if (!session) return <SignInPage />;
+  // First sign-in with a clinic code (or after a forgotten PIN): choose a PIN for signing in at home
+  if (!session.pinSet && !skippedPin) {
+    return (
+      <div className="auth">
+        <PinForm changing={false} onDone={() => {}} onSkip={() => setSkippedPin(true)} />
+      </div>
+    );
+  }
   return (
     <Routes>
       <Route index element={<Home />} />
@@ -31,6 +41,7 @@ function Home() {
   const [profiles, setProfiles] = useState<Profile[]>();
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [error, setError] = useState<string>();
+  const [changingPin, setChangingPin] = useState(false);
   const tab = (params.get('tab') as Tab) || 'visits';
   const profileId = params.get('p') ?? profiles?.[0]?.profileId;
   const profile = profiles?.find((p) => p.profileId === profileId);
@@ -62,10 +73,12 @@ function Home() {
         <span className="brand">ClinicEMR</span>
         <span className="spacer" />
         <span className="small muted mono">{session!.phone}</span>
+        <button className="link small" onClick={() => setChangingPin((v) => !v)}>{session!.pinSet ? 'Change PIN' : 'Set PIN'}</button>
         <button className="link small" onClick={() => { signOut(); navigate('/my'); }}>Sign out</button>
       </header>
       <main>
         {error && <div className="alert error">{error}</div>}
+        {changingPin && <PinForm changing={session!.pinSet} onDone={() => setChangingPin(false)} onSkip={() => setChangingPin(false)} />}
         {profiles && pending.length > 0 && (
           <PendingRequests requests={pending} profiles={profiles} onDone={loadPending} />
         )}

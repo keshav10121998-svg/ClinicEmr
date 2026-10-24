@@ -8,6 +8,7 @@ import { date, dateTime } from '../format';
 import { SharedHistoryPanel } from '../components/SharedHistoryPanel';
 import { useIsPhone } from '../useIsPhone';
 import { AttachedFiles } from '../components/AttachedFiles';
+import { AppSignInCode } from '../components/AppSignInCode';
 
 export function PatientPage() {
   const { patientId } = useParams();
@@ -128,6 +129,7 @@ export function PatientPage() {
       </div>
       {error && <div className="alert error">{error}</div>}
       <PatientHeader patient={patient} allergies={summary?.allergies} />
+      <AppSignInCode patientId={patientId!} />
 
       {!clinical && (
         <div className="alert info">Visit records are visible to doctors and nurses.</div>

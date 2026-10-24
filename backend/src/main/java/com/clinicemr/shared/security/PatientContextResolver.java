@@ -36,11 +36,21 @@ public class PatientContextResolver implements HandlerMethodArgumentResolver {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in with your phone number first.");
         }
         long accountId = Long.parseLong(jwt.getSubject());
-        String phone = jdbc.sql("SELECT phone_e164 FROM account WHERE id = :id AND deleted_at IS NULL AND status = 'ACTIVE'")
+        record Account(String phoneE164, int sessionVersion) {
+        }
+        Account account = jdbc.sql("""
+                SELECT phone_e164, session_version FROM account WHERE id = :id AND deleted_at IS NULL AND status = 'ACTIVE'
+                """)
                 .param("id", accountId)
-                .query(String.class)
+                .query(Account.class)
                 .optional()
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in again."));
-        return new PatientContext(accountId, phone);
+        // A PIN change signs out every phone that signed in before it
+        Object sv = jwt.getClaim("sv");
+        int tokenVersion = sv instanceof Number n ? n.intValue() : 0;
+        if (tokenVersion != account.sessionVersion()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Sign in again.");
+        }
+        return new PatientContext(accountId, account.phoneE164(), jwt.getClaimAsString("amr"), jwt.getIssuedAt());
     }
 }

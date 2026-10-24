@@ -301,3 +301,11 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .med-name .mic .mic-text { display: none; }
 @media (pointer: coarse) { .mic { height: 40px; min-height: 40px; padding: 0 14px; } .med-name .mic { height: 36px; min-height: 36px; } }
 @media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }
+
+/* ----- patient app sign-in code */
+.app-code-start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.app-code { justify-items: center; text-align: center; }
+.app-code > .between { justify-self: stretch; }
+.app-code .qr { width: min(260px, 70vw); aspect-ratio: 1; background: #fff; padding: 6px; border-radius: 12px; border: 1px solid var(--line); }
+.app-code .qr svg { width: 100%; height: 100%; display: block; }
+.big-code { font: 700 38px/1 var(--mono); letter-spacing: .12em; color: var(--accent); padding: 6px 0; }
