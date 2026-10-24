@@ -9,6 +9,7 @@ import type {
 import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { AttachedFiles } from '../components/AttachedFiles';
 import { useIsPhone } from '../useIsPhone';
+import { appendSpoken, MicButton, useDictation, VoiceTextArea } from '../components/Dictation';
 import { addDays, date, dateTime, todayIst } from '../format';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'conflict' | 'error';
@@ -226,8 +227,7 @@ export function VisitPage() {
 
   const signed = encounter.status === 'SIGNED';
   const fieldErrors = error?.problem.fields as Record<string, string> | undefined;
-  const set = (k: keyof EncounterContent) => (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-    update((c) => ({ ...c, [k]: e.target.value || undefined }));
+  const set = (k: keyof EncounterContent) => (value: string) => update((c) => ({ ...c, [k]: value || undefined }));
   const setVital = (k: keyof Vitals) => (e: React.ChangeEvent<HTMLInputElement>) =>
     update((c) => ({ ...c, vitals: { ...c.vitals, [k]: e.target.value === '' ? undefined : Number(e.target.value) } }));
 
@@ -291,17 +291,13 @@ export function VisitPage() {
             </div>
 
             <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 14 }}>
-              <label className="field">Complaints
-                <textarea id="complaints" rows={2} value={content.chiefComplaints ?? ''} onChange={set('chiefComplaints')}
-                          placeholder="e.g. Fever 3 days, cough" autoFocus />
-              </label>
+              <VoiceTextArea id="complaints" label="Complaints" value={content.chiefComplaints} onChange={set('chiefComplaints')}
+                             placeholder="e.g. Fever 3 days, cough" autoFocus />
 
               <DiagnosisField content={content} options={diagnosisOptions} onChange={(diagnoses) => update((c) => ({ ...c, diagnoses }))} />
 
-              <label className="field">Treatment given
-                <textarea id="treatment" rows={2} value={content.treatmentGiven ?? ''} onChange={set('treatmentGiven')}
-                          placeholder="e.g. Injection, dressing, nebulisation" />
-              </label>
+              <VoiceTextArea id="treatment" label="Treatment given" value={content.treatmentGiven} onChange={set('treatmentGiven')}
+                             placeholder="e.g. Injection, dressing, nebulisation" />
 
               <div style={{ display: 'grid', gap: 8 }}>
                 <div className="section-title">
@@ -328,9 +324,8 @@ export function VisitPage() {
                 <datalist id="frequencies">{FREQUENCIES.map((f) => <option key={f} value={f} />)}</datalist>
               </div>
 
-              <label className="field">Advice for the patient
-                <textarea id="advice" rows={2} value={content.advice ?? ''} onChange={set('advice')} placeholder="e.g. Rest, plenty of fluids" />
-              </label>
+              <VoiceTextArea id="advice" label="Advice for the patient" value={content.advice} onChange={set('advice')}
+                             placeholder="e.g. Rest, plenty of fluids" />
 
               <div style={{ display: 'grid', gap: 6 }}>
                 <h3>Next visit</h3>
@@ -361,17 +356,12 @@ export function VisitPage() {
                     <VitalInput id="rbs" label="RBS mg/dL" value={content.vitals?.bloodGlucoseMgDl} onChange={setVital('bloodGlucoseMgDl')} />
                   </div>
                 </div>
-                <label className="field">History
-                  <textarea id="history" rows={2} value={content.historyOfPresentIllness ?? ''} onChange={set('historyOfPresentIllness')} />
-                </label>
-                <label className="field">Examination
-                  <textarea id="exam" rows={2} value={content.examination ?? ''} onChange={set('examination')} />
-                </label>
+                <VoiceTextArea id="history" label="History" value={content.historyOfPresentIllness} onChange={set('historyOfPresentIllness')} />
+                <VoiceTextArea id="exam" label="Examination" value={content.examination} onChange={set('examination')} />
                 <TestsField items={content.investigations} editable={editable}
                             onChange={(items) => update((c) => ({ ...c, investigations: items }))} />
-                <label className="field">Private note (only this clinic sees it; never printed or shared)
-                  <textarea id="privateNote" rows={2} value={content.privateNote ?? ''} onChange={set('privateNote')} />
-                </label>
+                <VoiceTextArea id="privateNote" label="Private note (only this clinic sees it; never printed or shared)"
+                               value={content.privateNote} onChange={set('privateNote')} />
                 {!amending && editingDraft && templates.length > 0 && (
                   <label className="field">Fill from a template
                     <select id="template" value="" onChange={(e) => applyTemplate(e.target.value)}>
@@ -433,12 +423,31 @@ function DiagnosisField({ content, options, onChange }:
     });
   }
 
+  function setValue(value: string) {
+    setText(value);
+    onChange(parse(value, chronic));
+  }
+  const textRef = useRef(text);
+  textRef.current = text;
+  // A spoken diagnosis is matched to the list when it names one, so it keeps its code
+  const d = useDictation((spoken) => {
+    const s = spoken.toLowerCase();
+    const match = options.find((o) => o.display.toLowerCase() === s) ?? options.find((o) => o.display.toLowerCase().startsWith(s));
+    setValue(appendSpoken(textRef.current, match?.display ?? spoken, '; '));
+  });
+
   return (
     <div style={{ display: 'grid', gap: 6 }}>
-      <label className="field">Diagnosis
+      <div className="field">
+        <div className="field-head">
+          <label htmlFor="diagnosis">Diagnosis</label>
+          <MicButton listening={d.listening} onClick={d.toggle} label="Diagnosis" />
+        </div>
         <input id="diagnosis" list="diagnosis-options" value={text} placeholder="e.g. Viral fever"
-               onChange={(e) => { setText(e.target.value); onChange(parse(e.target.value, chronic)); }} />
-      </label>
+               className={d.listening ? 'listening' : undefined} onChange={(e) => setValue(e.target.value)} />
+        {d.listening && <span className="dictating" aria-live="polite">{d.interim || 'Listening… say the diagnosis'}</span>}
+        {d.error && <span className="dictating bad">{d.error}</span>}
+      </div>
       <datalist id="diagnosis-options">{options.map((o) => <option key={o.display} value={o.display} />)}</datalist>
       {text.trim() && (
         <label className="check small">
@@ -458,16 +467,25 @@ function normalise(s: string) {
 function MedicineRow({ n, item, options, onChange, onRemove }:
   { n: number; item: RxItem; options: RxItem[]; onChange: (r: RxItem) => void; onRemove: () => void }) {
   const days = item.longTerm ? 'ongoing' : item.durationDays ? String(item.durationDays) : '';
+  function setName(value: string, match = options.find((o) => o.drugDisplay === value)) {
+    onChange(match && !item.frequency
+      ? { ...item, ...match, timing: match.timing ?? item.timing }
+      : { ...item, drugDisplay: match?.drugDisplay ?? value, drugId: match?.drugId, genericName: match?.genericName ?? item.genericName });
+  }
+  // A spoken name picks the first suggestion it matches (the doctor's favourites come first)
+  const d = useDictation((spoken) => {
+    const s = spoken.toLowerCase();
+    const match = options.find((o) => o.drugDisplay.toLowerCase() === s)
+      ?? options.find((o) => o.drugDisplay.toLowerCase().startsWith(s) || o.genericName?.toLowerCase() === s);
+    setName(spoken.charAt(0).toUpperCase() + spoken.slice(1), match);
+  });
   return (
     <div className="med-row">
       <div className="med-name">
-        <input aria-label={`Medicine ${n}`} list="drug-options" placeholder="Medicine name" value={item.drugDisplay}
-               onChange={(e) => {
-                 const match = options.find((o) => o.drugDisplay === e.target.value);
-                 onChange(match && !item.frequency
-                   ? { ...item, ...match, timing: match.timing ?? item.timing }
-                   : { ...item, drugDisplay: e.target.value, drugId: match?.drugId, genericName: match?.genericName ?? item.genericName });
-               }} />
+        <input aria-label={`Medicine ${n}`} list="drug-options" placeholder={d.listening ? (d.interim || 'Say the medicine…') : 'Medicine name'}
+               value={item.drugDisplay} className={d.listening ? 'listening' : undefined}
+               onChange={(e) => setName(e.target.value)} />
+        <MicButton listening={d.listening} onClick={d.toggle} label={`medicine ${n}`} />
       </div>
       <input className="med-freq" aria-label={`How often ${n}`} list="frequencies" placeholder="How often (1-0-1)" value={item.frequency ?? ''}
              onChange={(e) => onChange({ ...item, frequency: e.target.value || undefined })} />

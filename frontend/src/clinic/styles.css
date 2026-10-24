@@ -56,7 +56,7 @@ main.page { max-width: 1320px; margin: 0 auto; padding: 20px 16px 48px; display:
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* ----- forms */
-label.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
+label.field, div.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
 input, select, textarea {
   font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 7px 9px; width: 100%; min-width: 0;
@@ -282,3 +282,22 @@ details.peek[open] { display: grid; gap: 12px; padding-bottom: 14px; }
 .visit-stats .stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
 .visit-stats .stat-label { font-size: 11px; }
 .visit-total { color: var(--accent); font-weight: 600; }
+
+/* ----- speak instead of typing */
+.field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+.mic {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 0 10px; height: 32px; min-height: 32px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--accent);
+}
+.mic.on { background: var(--danger); border-color: var(--danger); color: #fff; animation: mic-pulse 1.4s ease-in-out infinite; }
+.mic .mic-text { font-size: 13px; font-weight: 600; }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(161, 42, 31, .35); } 50% { box-shadow: 0 0 0 6px rgba(161, 42, 31, 0); } }
+textarea.listening, input.listening { border-color: var(--danger); outline-color: var(--danger); }
+.dictating { font-size: 13px; color: var(--ink); font-style: italic; }
+.dictating.bad { color: var(--danger); font-style: normal; }
+.med-name { position: relative; }
+.med-name input { padding-right: 46px; }
+.med-name .mic { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); height: 30px; min-height: 30px; padding: 0 8px; border: 0; }
+.med-name .mic .mic-text { display: none; }
+@media (pointer: coarse) { .mic { height: 40px; min-height: 40px; padding: 0 14px; } .med-name .mic { height: 36px; min-height: 36px; } }
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }

@@ -57,6 +57,12 @@ layout. Clinic screens so far:
   history, examination, tests, private note and templates sit under *More details*. Autosaves about a second after
   typing stops (Ctrl+S saves now) and shows allergy and duplicate warnings. Same as last time, finish, print
   A5/A4, and correct with a reason. Works on phones (form first, summary below) as well as desktops.
+- **Speak instead of typing:** a mic beside complaints, diagnosis, treatment, advice, history, examination, the private
+  note and each medicine name. Tap it, speak (English, India), tap *Stop*. Words appear as you talk and are added
+  to what is already there. A spoken diagnosis or medicine is matched to the suggestion list (favourites first), so
+  "paracetamol" fills the doctor's usual dose. Uses the browser's own speech recognition (Chrome, Edge, Android,
+  iPhone Safari); where there is none the mic is hidden. The microphone only works over HTTPS (or localhost). Note
+  that Chrome sends the audio to Google's speech service to turn it into text; Safari uses Apple's.
 
 - **Staff** (admins): list staff and add doctors (with registration details), nurses, front desk and admins.
   Someone who already uses ClinicEMR at another clinic joins by email and keeps their sign-in.
