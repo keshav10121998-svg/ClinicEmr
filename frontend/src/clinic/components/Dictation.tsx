@@ -27,14 +27,52 @@ export const dictationSupported = !!Ctor;
 
 let active: Recognition | null = null;
 
-/** Listens until stopped; each finished phrase goes to onFinal, the words so far to `interim`. */
-export function useDictation(onFinal: (text: string) => void) {
+// Chrome on Android repeats results it already sent (the same phrase twice, or a phrase then a longer version of
+// it), and its continuous mode is unreliable. There we listen for one phrase per tap.
+const isAndroid = /Android/i.test(navigator.userAgent);
+
+/**
+ * Turns a session's finished results into one text, dropping repeats: identical phrases, a phrase followed by a
+ * longer version of itself (the longer one wins), and a phrase said back to back inside one result ("abcd abcd").
+ */
+export function joinSpoken(finals: string[]) {
+  const out: string[] = [];
+  for (const raw of finals) {
+    const t = collapseRepeat(raw.trim());
+    if (!t) continue;
+    const last = out[out.length - 1];
+    const lt = t.toLowerCase();
+    const ll = last?.toLowerCase();
+    if (ll === undefined) out.push(t);
+    else if (lt === ll || ll.startsWith(lt)) continue;
+    else if (lt.startsWith(ll)) out[out.length - 1] = t;
+    else out.push(t);
+  }
+  return out.join(' ');
+}
+
+function collapseRepeat(t: string) {
+  const words = t.split(/\s+/);
+  if (words.length % 2 === 0) {
+    const half = words.length / 2;
+    if (words.slice(0, half).join(' ').toLowerCase() === words.slice(half).join(' ').toLowerCase()) {
+      return words.slice(0, half).join(' ');
+    }
+  }
+  return t;
+}
+
+/**
+ * Listens until stopped. `onStart` runs when listening begins (so a field can remember what it held), and `onText`
+ * gets everything said since then, rebuilt from scratch on every update, so a repeated result can't add text twice.
+ */
+export function useDictation({ onStart, onText }: { onStart?: () => void; onText: (spoken: string) => void }) {
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
   const [error, setError] = useState<string>();
   const rec = useRef<Recognition | null>(null);
-  const finalRef = useRef(onFinal);
-  finalRef.current = onFinal;
+  const handlers = useRef({ onStart, onText });
+  handlers.current = { onStart, onText };
 
   useEffect(() => () => rec.current?.stop(), []);
 
@@ -43,18 +81,21 @@ export function useDictation(onFinal: (text: string) => void) {
     active?.stop();
     const r = new Ctor();
     r.lang = 'en-IN';
-    r.continuous = true;
+    r.continuous = !isAndroid;
     r.interimResults = true;
+    let sent = '';
     r.onresult = (e) => {
+      const finals: string[] = [];
       let partial = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = 0; i < e.results.length; i++) {
         const res = e.results[i];
-        if (res.isFinal) {
-          const text = res[0].transcript.trim();
-          if (text) finalRef.current(text);
-        } else {
-          partial += res[0].transcript;
-        }
+        if (res.isFinal) finals.push(res[0].transcript);
+        else partial = res[0].transcript;
+      }
+      const text = joinSpoken(finals);
+      if (text && text !== sent) {
+        sent = text;
+        handlers.current.onText(text);
       }
       setInterim(partial.trim());
     };
@@ -69,6 +110,7 @@ export function useDictation(onFinal: (text: string) => void) {
       if (active === r) active = null;
     };
     setError(undefined);
+    handlers.current.onStart?.();
     rec.current = r;
     active = r;
     r.start();
@@ -111,7 +153,11 @@ export function VoiceTextArea({ id, label, value, onChange, placeholder, rows = 
 }) {
   const valueRef = useRef(value);
   valueRef.current = value;
-  const d = useDictation((text) => onChange(appendSpoken(valueRef.current, text)));
+  const base = useRef<string | undefined>();
+  const d = useDictation({
+    onStart: () => { base.current = valueRef.current; },
+    onText: (spoken) => onChange(appendSpoken(base.current, spoken)),
+  });
   return (
     <div className="field">
       <div className="field-head">

@@ -430,10 +430,14 @@ function DiagnosisField({ content, options, onChange }:
   const textRef = useRef(text);
   textRef.current = text;
   // A spoken diagnosis is matched to the list when it names one, so it keeps its code
-  const d = useDictation((spoken) => {
-    const s = spoken.toLowerCase();
-    const match = options.find((o) => o.display.toLowerCase() === s) ?? options.find((o) => o.display.toLowerCase().startsWith(s));
-    setValue(appendSpoken(textRef.current, match?.display ?? spoken, '; '));
+  const base = useRef('');
+  const d = useDictation({
+    onStart: () => { base.current = textRef.current; },
+    onText: (spoken) => {
+      const s = spoken.toLowerCase();
+      const match = options.find((o) => o.display.toLowerCase() === s) ?? options.find((o) => o.display.toLowerCase().startsWith(s));
+      setValue(appendSpoken(base.current, match?.display ?? spoken, '; '));
+    },
   });
 
   return (
@@ -473,11 +477,13 @@ function MedicineRow({ n, item, options, onChange, onRemove }:
       : { ...item, drugDisplay: match?.drugDisplay ?? value, drugId: match?.drugId, genericName: match?.genericName ?? item.genericName });
   }
   // A spoken name picks the first suggestion it matches (the doctor's favourites come first)
-  const d = useDictation((spoken) => {
-    const s = spoken.toLowerCase();
-    const match = options.find((o) => o.drugDisplay.toLowerCase() === s)
-      ?? options.find((o) => o.drugDisplay.toLowerCase().startsWith(s) || o.genericName?.toLowerCase() === s);
-    setName(spoken.charAt(0).toUpperCase() + spoken.slice(1), match);
+  const d = useDictation({
+    onText: (spoken) => {
+      const s = spoken.toLowerCase();
+      const match = options.find((o) => o.drugDisplay.toLowerCase() === s)
+        ?? options.find((o) => o.drugDisplay.toLowerCase().startsWith(s) || o.genericName?.toLowerCase() === s);
+      setName(spoken.charAt(0).toUpperCase() + spoken.slice(1), match);
+    },
   });
   return (
     <div className="med-row">
