@@ -101,3 +101,8 @@ dl.visit dd { margin: 3px 0 0; white-space: pre-wrap; }
 .rx > div { padding: 10px 12px; background: var(--surface-2); border-radius: var(--radius); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ----- sign-in switch (same rules in both stylesheets) */
+.signin-switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.signin-switch a { padding: 10px 8px; text-align: center; text-decoration: none; color: var(--muted); font-weight: 600; min-height: 44px; display: grid; place-items: center; }
+.signin-switch a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }

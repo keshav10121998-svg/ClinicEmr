@@ -29,7 +29,7 @@ export function VisitPage() {
   return (
     <div className="shell">
       <header className="top">
-        <button className="link" onClick={() => navigate(`/?p=${profileId}`)}>← Back</button>
+        <button className="link" onClick={() => navigate(`/my?p=${profileId}`)}>← Back</button>
       </header>
       <main>
         {error && <div className="alert error">{error}</div>}

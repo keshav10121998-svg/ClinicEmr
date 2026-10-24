@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useSession } from '../session';
+import { SignInSwitch } from '../../shared/SignInSwitch';
 
 export function LoginPage() {
   const { login } = useSession();
@@ -26,6 +27,7 @@ export function LoginPage() {
   return (
     <div className="auth">
       <form className="card" onSubmit={submit}>
+        <SignInSwitch current="clinic" />
         <div>
           <h1>Sign in to ClinicEMR</h1>
           <p className="muted small">For doctors, nurses and front desk staff.</p>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api';
 import { useSession } from '../session';
+import { SignInSwitch } from '../../shared/SignInSwitch';
 
 interface CodeSent { challengeId: string; phone: string; expiresAt: string }
 interface SignedIn { accessToken: string; expiresAt: string; accountId: number; profiles: number }
@@ -50,6 +51,7 @@ export function SignInPage() {
   return (
     <div className="auth">
       <div className="card">
+        <SignInSwitch current="patient" />
         <div>
           <h1>Your family's health records</h1>
           <p className="muted small">See visits and prescriptions from every clinic on ClinicEMR, keep old reports, and decide who can see them.</p>

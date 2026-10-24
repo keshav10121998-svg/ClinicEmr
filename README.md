@@ -27,9 +27,11 @@ that follows the patient across clinics once they approve. Design and roadmap:
 Every call under `/api/v1/clinic/**` needs `Authorization: Bearer <token>` and `X-Clinic-Id: <clinic id>`.
 A clinic only sees patients linked to it; lookups never reveal whether a number is registered elsewhere.
 
-### Clinic web app (`frontend/clinic`)
+### Web app (`frontend`): clinic screens
 
-React + TypeScript + Vite. Screens so far:
+One React + TypeScript + Vite app for clinic staff and patients, served by the backend. The sign-in page has
+a *Clinic staff* / *Patient / family* switch. Staff screens live at `/`; patient screens at `/my`. Each side keeps its
+own sign-in and its own look. Clinic screens so far:
 
 - **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
 - **Patients:** the clinic's patients, most recently seen first; tap one to open. Typing only narrows the list.
@@ -62,9 +64,9 @@ The session token is kept in `sessionStorage`, so closing the tab signs out on s
 **Trying the sharing flow locally:** with no SMS provider configured, codes are written to the backend log
 (`backend/target/dev-server.log` when started as in the run instructions, look for `[DEV SMS`).
 
-### Patient app (`frontend/patient`)
+### Web app: patient screens (`/my`)
 
-Phone-first web app (React + TypeScript + Vite) for patients and families:
+Phone-first screens for patients and families, in the same app under `/my`:
 
 - **Sign in** with mobile number and SMS code. The sign-in lasts 30 days on that phone, until *Sign out*.
 - **Family switcher:** every profile linked to the number (registered at any clinic, or managed as caregiver).
@@ -184,7 +186,7 @@ The ICD-10 and drug lists in `V3__terminology_seed.sql` are a starter set. Have 
 extended before launch. Prescriptions use the PDF's built-in Latin fonts, so Hindi or other Indian-script
 names need an embedded font (not done yet).
 
-Next up: the front-end (clinic web app, then patient app), shared allergies and medicines in the clinic summary,
+Next up: shared allergies and medicines in the clinic summary,
 a real SMS provider through the outbox with retries, virus scanning of uploads, and deployment to Oracle Cloud.
 
 ## Run locally
@@ -207,26 +209,29 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-**Clinic web app** (proxies `/api` to the backend on :18080):
+**Web app, while developing** (hot reload; proxies `/api` to the backend on :18080):
 
 ```bash
-cd frontend/clinic
+cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173, choose **Set up your clinic**, and sign in.
-
-**Patient app** (proxies `/api` to the same backend):
-
-```bash
-cd frontend/patient
-npm install
-npm run dev
-```
-
-Open http://localhost:5174 and sign in with the mobile number of a patient registered at a clinic. Without an SMS
+Open http://localhost:5173. For a clinic, choose **Set up your clinic** and sign in. For a patient, tap
+**Patient / family** and sign in with the mobile number of a patient registered at a clinic. Without an SMS
 provider the code is in the backend log (`[DEV SMS`).
+
+**One server for everything** (how it is deployed): `mvnw package` builds the web app and packs it into the
+backend jar, so the backend serves the screens and the API from one address:
+
+```bash
+cd backend
+./mvnw package
+java -jar target/clinic-emr-backend-0.1.0-SNAPSHOT.jar
+```
+
+Open http://localhost:18080 (clinic) or http://localhost:18080/my (patients). After a `package`, the
+`spring-boot:test-run` quick start serves the same build too. Add `-Dweb.skip=true` to package the API alone.
 
 - API docs: http://localhost:18080/swagger-ui.html
 - MinIO console: http://localhost:9001 (minioadmin / minioadmin)

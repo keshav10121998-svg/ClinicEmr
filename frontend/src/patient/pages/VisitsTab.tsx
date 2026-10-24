@@ -27,7 +27,7 @@ export function VisitsTab({ profileId }: { profileId: string }) {
       <div className="list">
         {visits.map((v) => (
           <button key={v.encounterId} className="link" style={{ textAlign: 'left', color: 'inherit', padding: '12px 0' }}
-                  onClick={() => navigate(`/profiles/${profileId}/visits/${v.encounterId}`)}>
+                  onClick={() => navigate(`/my/profiles/${profileId}/visits/${v.encounterId}`)}>
             <div className="between">
               <b>{dateTime(v.date)}</b>
               {v.version > 1 && <span className="chip">updated by doctor</span>}

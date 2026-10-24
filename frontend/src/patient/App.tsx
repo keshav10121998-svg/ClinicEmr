@@ -17,9 +17,9 @@ export function App() {
   if (!session) return <SignInPage />;
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/profiles/:profileId/visits/:encounterId" element={<VisitPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route index element={<Home />} />
+      <Route path="profiles/:profileId/visits/:encounterId" element={<VisitPage />} />
+      <Route path="*" element={<Navigate to="/my" replace />} />
     </Routes>
   );
 }
@@ -62,7 +62,7 @@ function Home() {
         <span className="brand">ClinicEMR</span>
         <span className="spacer" />
         <span className="small muted mono">{session!.phone}</span>
-        <button className="link small" onClick={() => { signOut(); navigate('/'); }}>Sign out</button>
+        <button className="link small" onClick={() => { signOut(); navigate('/my'); }}>Sign out</button>
       </header>
       <main>
         {error && <div className="alert error">{error}</div>}

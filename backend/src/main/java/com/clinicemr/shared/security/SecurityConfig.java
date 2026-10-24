@@ -38,7 +38,9 @@ public class SecurityConfig {
                         // Signed, expiring links checked by the controller (local dev storage only)
                         .requestMatchers(HttpMethod.GET, "/api/v1/storage/local").permitAll()
                         .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**", "/actuator/**").authenticated()
+                        // Everything else is the web app's own files and screens
+                        .anyRequest().permitAll())
                 .oauth2ResourceServer(rs -> rs.jwt(Customizer.withDefaults()))
                 .build();
     }
