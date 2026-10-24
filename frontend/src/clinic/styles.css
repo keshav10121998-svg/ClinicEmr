@@ -128,13 +128,13 @@ tr.clickable:hover td { background: var(--surface-2); }
 /* ----- patient list: whole row is the tap target */
 .patient-list { display: grid; }
 .patient-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; text-align: left;
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; text-align: left;
   border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 12px 4px; background: none; min-height: 56px;
 }
 .patient-row:hover { background: var(--surface-2); }
 .patient-row .patient-name { font-weight: 600; font-size: 15px; }
-.patient-row .last-visit { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); white-space: nowrap; }
-@media (max-width: 520px) { .patient-row { grid-template-columns: minmax(0, 1fr); } .patient-row .last-visit { grid-column: 1; grid-row: auto; } }
+.patient-row .last-visit { grid-column: 3; grid-row: 1 / span 2; align-self: center; color: var(--muted); white-space: nowrap; }
+@media (max-width: 520px) { .patient-row .last-visit { grid-column: 2; grid-row: auto; } }
 
 /* ----- simple choices */
 .segmented { display: flex; gap: 0; }
@@ -181,3 +181,74 @@ details.more[open] { display: grid; gap: 14px; }
 .signin-switch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .signin-switch a { padding: 10px 8px; text-align: center; text-decoration: none; color: var(--muted); font-weight: 600; min-height: 44px; display: grid; place-items: center; }
 .signin-switch a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+
+/* ----- lists that read well at any width */
+.patient-row .avatar {
+  grid-column: 1; grid-row: 1 / span 3; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; align-self: center;
+}
+.patient-row .patient-name, .patient-row > .muted { grid-column: 2; }
+.staff-list { display: grid; }
+.staff-row { display: grid; gap: 2px 8px; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.staff-row > .chip { grid-column: 2; grid-row: 1; justify-self: end; }
+.staff-row > :not(b):not(.chip) { grid-column: 1 / -1; }
+.visit-cards { display: grid; gap: 8px; }
+.visit-card {
+  display: grid; gap: 3px; text-align: left; white-space: normal; padding: 12px 14px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.visit-card:active { background: var(--accent-soft); }
+.tab-switch { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: #e6ecea; }
+.tab-switch button { border: 0; background: transparent; border-radius: 9px; font-weight: 600; color: var(--muted); }
+.tab-switch button[aria-selected="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+details.peek { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 14px; }
+details.peek > summary { cursor: pointer; padding: 12px 0; font-weight: 600; color: var(--accent); list-style: none; }
+details.peek > summary::after { content: '▾'; float: right; color: var(--muted); }
+details.peek[open] > summary::after { content: '▴'; }
+details.peek[open] { display: grid; gap: 12px; padding-bottom: 14px; }
+.bottom-tabs, .fab, .phone-only { display: none; }
+
+/* ----- phones: the main way clinics use this app */
+@media (max-width: 759px) {
+  :root { --radius: 12px; }
+  body { font-size: 15px; }
+  h1 { font-size: 22px; }
+  .desktop-only { display: none !important; }
+  .phone-only { display: block; }
+  main.page { padding: 14px 12px calc(96px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
+  .card { padding: 14px; box-shadow: 0 1px 2px rgba(16, 40, 34, .06); }
+  .topbar { height: 52px; }
+  .topbar nav { display: none; }
+  .topbar .who.clinic-name { display: block; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+  .bottom-tabs {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+    background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-tabs a, .bottom-tabs button {
+    display: grid; justify-items: center; gap: 2px; padding: 8px 4px 10px; min-height: 60px; font-size: 12px; font-weight: 600;
+    color: var(--muted); text-decoration: none; border: 0; border-radius: 0; background: none;
+  }
+  .bottom-tabs a.active { color: var(--accent); }
+
+  .fab {
+    display: grid; place-items: center; position: fixed; z-index: 15; right: 18px; bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink);
+    font-size: 30px; line-height: 1; box-shadow: 0 6px 16px rgba(13, 107, 90, .35);
+  }
+
+  /* Main action stays under the thumb: above the tab bar, or at the very bottom during a visit */
+  .action-bar {
+    position: sticky; z-index: 12; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px;
+    margin: 0 -12px; padding: 10px 12px; background: rgba(244, 246, 245, .94); backdrop-filter: blur(6px);
+    border-top: 1px solid var(--line);
+  }
+  .card .action-bar { margin: 0 -14px -14px; border-radius: 0 0 var(--radius) var(--radius); bottom: env(safe-area-inset-bottom, 0px); }
+  .action-bar .save-state { text-align: center; }
+  .action-bar button.primary { padding: 13px 16px; font-size: 16px; }
+
+  .patient-list .patient-row { padding: 12px 2px; }
+  .patient-head .name { font-size: 22px; }
+  .visit-layout { gap: 12px; }
+  .med-row { border-radius: 12px; background: var(--surface-2); }
+}

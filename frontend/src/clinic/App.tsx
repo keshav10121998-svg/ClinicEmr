@@ -1,4 +1,5 @@
-import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { ExitIcon, PeopleIcon, StaffIcon } from './components/Icons';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterClinicPage } from './pages/RegisterClinicPage';
@@ -25,6 +26,7 @@ export function App() {
   return (
     <>
       <TopBar />
+      <BottomTabs />
       <main className="page">
         <Routes>
           <Route path="/" element={<Navigate to="/patients" replace />} />
@@ -62,11 +64,26 @@ function TopBar() {
           ))}
         </select>
       ) : (
-        <span className="who">{clinic!.clinicName}</span>
+        <span className="who clinic-name">{clinic!.clinicName}</span>
       )}
       <span className="who">{session!.name} · {clinic!.roles.map(roleLabel).join(', ')}</span>
-      <button className="link" onClick={() => { logout(); navigate('/', { replace: true }); }}>Sign out</button>
+      <button className="link desktop-only" onClick={() => { logout(); navigate('/', { replace: true }); }}>Sign out</button>
     </header>
+  );
+}
+
+/** Phone navigation along the bottom edge, within thumb reach. Hidden on wider screens and during a visit. */
+function BottomTabs() {
+  const { logout, has } = useSession();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  if (pathname.startsWith('/visits/')) return null;
+  return (
+    <nav className="bottom-tabs" aria-label="Main">
+      <NavLink to="/patients"><PeopleIcon />Patients</NavLink>
+      {has('ADMIN') && <NavLink to="/staff"><StaffIcon />Staff</NavLink>}
+      <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }}><ExitIcon />Sign out</button>
+    </nav>
   );
 }
 

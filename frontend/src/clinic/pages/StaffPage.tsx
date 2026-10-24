@@ -18,24 +18,20 @@ export function StaffPage() {
     <>
       <h1>Staff</h1>
       {error && <div className="alert error">{error}</div>}
-      <AddStaff onAdded={(s) => setStaff((list) => [...list.filter((x) => x.staffId !== s.staffId), s])} />
       <div className="card">
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Roles</th><th>Registration</th></tr></thead>
-            <tbody>
-              {staff.map((s) => (
-                <tr key={s.staffId}>
-                  <td><b>{s.name}</b></td>
-                  <td>{s.email}</td>
-                  <td>{s.roles.map(roleLabel).join(', ')}</td>
-                  <td className="small">{s.doctor ? `${s.doctor.registrationNo} · ${s.doctor.registrationCouncil}` : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2>Team</h2>
+        <div className="staff-list">
+          {staff.map((s) => (
+            <div key={s.staffId} className="staff-row">
+              <b>{s.name}</b>
+              <span className="chip ok">{s.roles.map(roleLabel).join(', ')}</span>
+              <span className="muted small" style={{ overflowWrap: 'anywhere' }}>{s.email}</span>
+              {s.doctor && <span className="small">{s.doctor.registrationNo} · {s.doctor.registrationCouncil}</span>}
+            </div>
+          ))}
         </div>
       </div>
+      <AddStaff onAdded={(s) => setStaff((list) => [...list.filter((x) => x.staffId !== s.staffId), s])} />
     </>
   );
 }

@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { AttachedFiles } from '../components/AttachedFiles';
+import { useIsPhone } from '../useIsPhone';
 import { addDays, date, dateTime, todayIst } from '../format';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'conflict' | 'error';
@@ -26,6 +27,7 @@ export function VisitPage() {
   const { visitId } = useParams();
   const navigate = useNavigate();
   const { session, has } = useSession();
+  const phone = useIsPhone();
   const [encounter, setEncounter] = useState<Encounter>();
   const [summary, setSummary] = useState<PatientSummary>();
   const [content, setContent] = useState<EncounterContent>(emptyContent());
@@ -229,6 +231,12 @@ export function VisitPage() {
   const setVital = (k: keyof Vitals) => (e: React.ChangeEvent<HTMLInputElement>) =>
     update((c) => ({ ...c, vitals: { ...c.vitals, [k]: e.target.value === '' ? undefined : Number(e.target.value) } }));
 
+  const lastVisitCard = summary.lastVisit && summary.lastVisit.encounterId !== encounter.id && (
+    <LastVisitCard lastVisit={summary.lastVisit}
+                   onOpen={async () => { await flush(); navigate(`/visits/${summary.lastVisit!.encounterId}`); }} />
+  );
+  const saveLabel = { saved: 'Saved', saving: 'Saving…', unsaved: 'Saving soon…', conflict: 'Not saved', error: 'Not saved, will retry' }[saveState];
+
   return (
     <>
       <div className="between">
@@ -258,13 +266,18 @@ export function VisitPage() {
       )}
 
       <div className="visit-layout">
-        <aside className="sticky" style={{ display: 'grid', gap: 16 }}>
-          {summary.lastVisit && summary.lastVisit.encounterId !== encounter.id && (
-            <LastVisitCard lastVisit={summary.lastVisit}
-                           onOpen={async () => { await flush(); navigate(`/visits/${summary.lastVisit!.encounterId}`); }} />
-          )}
-          <SummaryPanel summary={summary} />
-        </aside>
+        {phone ? (
+          <details className="peek">
+            <summary>Last visit and health summary</summary>
+            {lastVisitCard}
+            <SummaryPanel summary={summary} />
+          </details>
+        ) : (
+          <aside className="sticky" style={{ display: 'grid', gap: 16 }}>
+            {lastVisitCard}
+            <SummaryPanel summary={summary} />
+          </aside>
+        )}
 
         {signed && !amending ? (
           <SignedView encounter={encounter} canAmend={isAuthor} onAmend={() => { setAmending(true); contentRef.current = content; }} />
@@ -273,9 +286,7 @@ export function VisitPage() {
             <div className="between">
               <h2>{amending ? `Correct this visit (becomes version ${encounter.currentVersion + 1})` : 'Visit'}</h2>
               {!amending && editingDraft && (
-                <span className={`save-state ${saveState === 'error' || saveState === 'conflict' ? 'bad' : ''}`}>
-                  {{ saved: 'Saved', saving: 'Saving…', unsaved: 'Saving soon…', conflict: 'Not saved', error: 'Not saved, will retry' }[saveState]}
-                </span>
+                <span className={`save-state ${saveState === 'error' || saveState === 'conflict' ? 'bad' : ''}`}>{saveLabel}</span>
               )}
             </div>
 
@@ -375,7 +386,7 @@ export function VisitPage() {
             <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
 
             {amending ? (
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div className="action-bar" style={{ display: 'grid', gap: 8 }}>
                 <input id="amendReason" placeholder="Reason for the change (required)" value={amendReason}
                        onChange={(e) => setAmendReason(e.target.value)} />
                 <div className="row end">
@@ -384,7 +395,10 @@ export function VisitPage() {
                 </div>
               </div>
             ) : editingDraft && isAuthor && (
-              <button type="button" className="primary block" onClick={sign}>Finish visit</button>
+              <div className="action-bar">
+                {phone && <span className={`save-state ${saveState === 'error' || saveState === 'conflict' ? 'bad' : ''}`}>{saveLabel}</span>}
+                <button type="button" className="primary block" onClick={sign}>Finish visit</button>
+              </div>
             )}
           </section>
         )}

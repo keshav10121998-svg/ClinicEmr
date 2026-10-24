@@ -48,11 +48,14 @@ export function PatientsPage() {
     <>
       <div className="between">
         <h1>Patients</h1>
-        <button className="primary" onClick={() => setShowRegister((s) => !s)}>
+        <button className="primary desktop-only" onClick={() => setShowRegister((s) => !s)}>
           {showRegister ? 'Close' : '+ New patient'}
         </button>
       </div>
 
+      {showRegister && (
+        <button type="button" className="phone-only" onClick={() => setShowRegister(false)}>Cancel new patient</button>
+      )}
       {showRegister && (
         <RegisterPatient
           initialPhone={filterIsPhone ? filter.trim() : ''}
@@ -80,9 +83,14 @@ export function PatientsPage() {
             </div>
           </div>
         )}
+        {!showRegister && (
+          <button type="button" className="fab" aria-label="New patient"
+                  onClick={() => { setShowRegister(true); window.scrollTo({ top: 0 }); }}>+</button>
+        )}
         <div className="patient-list">
           {shown?.map((p) => (
             <button key={p.publicId} className="patient-row" onClick={() => navigate(`/patients/${p.publicId}`)}>
+              <span className="avatar" aria-hidden="true">{initials(p.name)}</span>
               <span className="patient-name">{p.name}</span>
               <span className="muted small">{ageSex(p)} · <span className="mono">{p.mrn}</span>{p.phone ? ` · ${p.phone.replace(/^\+91/, '')}` : ''}</span>
               <span className="small last-visit">{p.lastVisitAt ? `Last visit ${date(p.lastVisitAt)}` : 'No visits yet'}</span>
@@ -202,4 +210,9 @@ function RegisterPatient({ initialPhone, initialName, onDone }:
       <button className="primary block" disabled={busy || !f.gender}>{busy ? 'Saving…' : 'Register'}</button>
     </form>
   );
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
