@@ -12,6 +12,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Staff login | `POST /api/v1/auth/staff/login` → JWT + clinics and roles |
 | Clinic and staff | `GET /api/v1/clinic`, `GET/POST /api/v1/clinic/staff` |
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
+| Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
 | Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
@@ -39,6 +40,10 @@ and the main action (*Start visit*, *Finish visit*) pinned within thumb reach. W
 layout. Clinic screens so far:
 
 - **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
+- **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
+  the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
+  time, and the diagnosis for doctors and nurses. Unfinished visits show as *In progress*; cancelled ones are not
+  counted.
 - **Patients:** the clinic's patients, most recently seen first; tap one to open. Typing only narrows the list.
   Registering asks for name, sex, age and mobile; date of birth, ABHA and blood group are optional extras. A
   duplicate warning offers the existing record.

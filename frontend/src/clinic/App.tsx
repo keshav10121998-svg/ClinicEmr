@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { ExitIcon, PeopleIcon, StaffIcon } from './components/Icons';
+import { ChartIcon, ExitIcon, PeopleIcon, StaffIcon } from './components/Icons';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterClinicPage } from './pages/RegisterClinicPage';
@@ -8,6 +8,7 @@ import { PatientsPage } from './pages/PatientsPage';
 import { PatientPage } from './pages/PatientPage';
 import { VisitPage } from './pages/VisitPage';
 import { StaffPage } from './pages/StaffPage';
+import { OverviewPage } from './pages/OverviewPage';
 
 export function App() {
   const { session, clinic, has } = useSession();
@@ -31,6 +32,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/patients" replace />} />
           <Route path="/patients" element={<PatientsPage />} />
+          <Route path="/overview" element={<OverviewPage />} />
           <Route path="/patients/:patientId" element={<PatientPage />} />
           <Route path="/visits/:visitId" element={<VisitPage />} />
           <Route path="/staff" element={has('ADMIN') ? <StaffPage /> : <Navigate to="/patients" replace />} />
@@ -49,6 +51,7 @@ function TopBar() {
       <a className="brand" href="/patients">ClinicEMR</a>
       <nav>
         <NavLink to="/patients">Patients</NavLink>
+        <NavLink to="/overview">Overview</NavLink>
         {has('ADMIN') && <NavLink to="/staff">Staff</NavLink>}
       </nav>
       <span className="spacer" />
@@ -81,6 +84,7 @@ function BottomTabs() {
   return (
     <nav className="bottom-tabs" aria-label="Main">
       <NavLink to="/patients"><PeopleIcon />Patients</NavLink>
+      <NavLink to="/overview"><ChartIcon />Overview</NavLink>
       {has('ADMIN') && <NavLink to="/staff"><StaffIcon />Staff</NavLink>}
       <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }}><ExitIcon />Sign out</button>
     </nav>

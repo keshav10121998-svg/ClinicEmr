@@ -286,3 +286,33 @@ export interface DocumentDetail {
   pages: { pageNo: number; mimeType: string; sizeBytes?: number; url: string }[];
   linksExpireAt: string;
 }
+
+export type VisitRange = 'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'THIS_YEAR' | 'ALL';
+
+export interface VisitCount {
+  range: VisitRange;
+  patients: number;
+  visits: number;
+}
+
+export interface Visitor {
+  encounterId: string;
+  patientId: string;
+  name: string;
+  mrn?: string;
+  gender: Patient['gender'];
+  ageYears?: number;
+  phone?: string;
+  startedAt: string;
+  status: 'DRAFT' | 'SIGNED';
+  doctorName: string;
+  diagnoses?: string;
+}
+
+export interface VisitorList {
+  range: VisitRange;
+  patients: number;
+  visits: number;
+  truncated: boolean;
+  items: Visitor[];
+}

@@ -39,7 +39,7 @@ public final class PatientDtos {
                                      double nameSimilarity) {
     }
 
-    static Integer age(LocalDate dob) {
+    public static Integer age(LocalDate dob) {
         return dob == null ? null : Period.between(dob, LocalDate.now()).getYears();
     }
 }

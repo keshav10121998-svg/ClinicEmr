@@ -252,3 +252,24 @@ details.peek[open] { display: grid; gap: 12px; padding-bottom: 14px; }
   .visit-layout { gap: 12px; }
   .med-row { border-radius: 12px; background: var(--surface-2); }
 }
+
+/* ----- overview: patients seen per period */
+.stat-tiles { display: grid; gap: 10px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stat-tile {
+  display: grid; gap: 2px; text-align: left; padding: 14px; border-radius: 12px; white-space: normal;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.stat-tile[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.stat-tile.main { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stat-tile.main .stat-label, .stat-tile.main .stat-sub { color: rgba(255, 255, 255, .85); }
+.stat-tile.main[aria-selected="true"] { box-shadow: 0 0 0 3px var(--accent-soft); }
+.stat-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat-number { font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat-sub { font-size: 12px; color: var(--muted); min-height: 1.2em; }
+.visitor-row .last-visit { text-align: right; }
+@media (max-width: 759px) {
+  .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-tile.main { grid-column: 1 / -1; }
+  .stat-tile.main .stat-number { font-size: 40px; }
+  .stat-number { font-size: 26px; }
+}
