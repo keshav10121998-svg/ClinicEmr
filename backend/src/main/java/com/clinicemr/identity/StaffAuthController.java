@@ -4,10 +4,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.clinicemr.shared.PhoneNumbers;
 import com.clinicemr.shared.error.ApiException;
 import com.clinicemr.shared.security.TokenService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -34,7 +34,16 @@ public class StaffAuthController {
         this.dummyHash = passwords.encode("not-a-real-password");
     }
 
-    public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
+    /**
+     * {@code username} is the email address or the 10-digit mobile number set for the account. Older clients send
+     * {@code email} instead.
+     */
+    public record LoginRequest(String username, String email, @NotBlank String password) {
+
+        String identifier() {
+            String id = username != null && !username.isBlank() ? username : email;
+            return id == null ? "" : id.trim();
+        }
     }
 
     public record ClinicMembership(long clinicId, String clinicName, String clinicStatus, List<String> roles) {
@@ -49,17 +58,26 @@ public class StaffAuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest req) {
-        Optional<StaffRow> staff = jdbc.sql("""
-                SELECT id, email, name, password_hash, status FROM staff_user WHERE lower(email) = lower(:email)
-                """)
-                .param("email", req.email().trim())
-                .query(StaffRow.class)
-                .optional();
+        String id = req.identifier();
+        Optional<StaffRow> staff;
+        if (id.contains("@")) {
+            staff = jdbc.sql("SELECT id, email, name, password_hash, status FROM staff_user WHERE lower(email) = lower(:email)")
+                    .param("email", id)
+                    .query(StaffRow.class)
+                    .optional();
+        } else if (PhoneNumbers.isValid(id)) {
+            staff = jdbc.sql("SELECT id, email, name, password_hash, status FROM staff_user WHERE phone_e164 = :phone")
+                    .param("phone", PhoneNumbers.toE164(id))
+                    .query(StaffRow.class)
+                    .optional();
+        } else {
+            throw ApiException.badRequest("INVALID_USERNAME", "Enter your email address or 10-digit mobile number.");
+        }
 
         boolean ok = passwords.matches(req.password(), staff.map(StaffRow::passwordHash).orElse(dummyHash))
                 && staff.isPresent() && "ACTIVE".equals(staff.get().status());
         if (!ok) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email or password is incorrect.");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email/mobile number or password is incorrect.");
         }
 
         StaffRow s = staff.get();

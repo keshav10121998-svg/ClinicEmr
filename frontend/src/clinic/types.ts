@@ -204,6 +204,7 @@ export interface StaffMember {
   staffId: number;
   name: string;
   email: string;
+  phone?: string;
   roles: Role[];
   doctor?: { registrationNo: string; registrationCouncil: string; qualifications: string; specialty?: string };
 }

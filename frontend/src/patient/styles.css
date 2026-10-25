@@ -110,3 +110,5 @@ dl.visit dd { margin: 3px 0 0; white-space: pre-wrap; }
 /* ----- sign-in help */
 .hint-box { display: grid; gap: 4px; justify-items: start; padding: 12px; border-radius: var(--radius); background: var(--accent-soft); }
 .hint-box .link { padding: 4px 0; font-weight: 600; }
+
+.field-hint { color: var(--warn); font-weight: 500; }

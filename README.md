@@ -9,7 +9,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Area | Endpoints |
 |---|---|
 | Clinic signup | `POST /api/v1/clinics` (clinic + first admin, optionally also the doctor) |
-| Staff login | `POST /api/v1/auth/staff/login` → JWT + clinics and roles |
+| Staff login | `POST /api/v1/auth/staff/login` with `username` = email or 10-digit mobile → JWT + clinics and roles; admins set a staff mobile with `PUT /api/v1/clinic/staff/{id}/phone` |
 | Clinic and staff | `GET /api/v1/clinic`, `GET/POST /api/v1/clinic/staff` |
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
@@ -39,7 +39,11 @@ a round **+** button for a new patient, Visits / Health / Files tabs on a patien
 and the main action (*Start visit*, *Finish visit*) pinned within thumb reach. Wider screens keep the two-column
 layout. Clinic screens so far:
 
-- **Sign in / set up your clinic**, and a clinic switcher for staff who work at more than one.
+- **Sign in / set up your clinic** with email or 10-digit mobile number and password, and a clinic switcher for staff
+  who work at more than one. A staff mobile number belongs to one account; admins add or change it on the Staff page.
+- **Mobile numbers** everywhere (patients, staff, clinic, patient sign-in) are exactly 10 digits starting with 6–9.
+  The boxes take digits only, stop at 10, clean up pasted `+91 …` numbers, and say how many digits are missing; the
+  server checks the same rule.
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
   time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished

@@ -14,7 +14,8 @@ interface Session {
 interface SessionApi {
   session?: Session;
   clinic?: ClinicMembership;
-  login(email: string, password: string): Promise<void>;
+  /** {@code username}: email address or 10-digit mobile number. */
+  login(username: string, password: string): Promise<void>;
   chooseClinic(clinicId: number): void;
   logout(): void;
   has(...roles: Role[]): boolean;
@@ -66,8 +67,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return {
       session,
       clinic,
-      async login(email, password) {
-        const res = await api.post<LoginResponse>('/auth/staff/login', { email, password });
+      async login(username, password) {
+        const res = await api.post<LoginResponse>('/auth/staff/login', { username, password });
         update({
           token: res.accessToken,
           expiresAt: res.expiresAt,

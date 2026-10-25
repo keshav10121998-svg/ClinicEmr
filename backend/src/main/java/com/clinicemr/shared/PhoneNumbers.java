@@ -3,40 +3,40 @@ package com.clinicemr.shared;
 import com.clinicemr.shared.error.ApiException;
 
 /**
- * Normalises phone numbers to E.164. Ten-digit Indian mobile numbers get the +91 prefix.
+ * Indian mobile numbers only: exactly 10 digits starting with 6, 7, 8 or 9, stored as E.164 ({@code +91…}).
+ * Spaces, dashes and a leading {@code +91}, {@code 91} or {@code 0} are allowed in what people type or paste.
  */
 public final class PhoneNumbers {
 
     private PhoneNumbers() {
     }
 
+    private static final String MESSAGE = "Enter a 10-digit mobile number.";
+
     public static String toE164(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw ApiException.badRequest("INVALID_PHONE", "Phone number is required.");
+            throw ApiException.badRequest("INVALID_PHONE", "Mobile number is required.");
         }
-        String trimmed = raw.trim();
-        boolean hasPlus = trimmed.startsWith("+");
-        String digits = trimmed.replaceAll("\\D", "");
+        String digits = raw.replaceAll("\\D", "");
+        if (digits.length() == 12 && digits.startsWith("91")) {
+            digits = digits.substring(2);
+        } else if (digits.length() == 11 && digits.startsWith("0")) {
+            digits = digits.substring(1);
+        }
+        if (digits.length() != 10 || digits.charAt(0) < '6') {
+            throw ApiException.badRequest("INVALID_PHONE", MESSAGE);
+        }
+        return "+91" + digits;
+    }
 
-        if (!hasPlus) {
-            if (digits.length() == 11 && digits.startsWith("0")) {
-                digits = digits.substring(1);
-            }
-            if (digits.length() == 10 && digits.charAt(0) >= '6' && digits.charAt(0) <= '9') {
-                return "+91" + digits;
-            }
-            if (digits.length() == 12 && digits.startsWith("91")) {
-                return "+" + digits;
-            }
-            throw ApiException.badRequest("INVALID_PHONE", "Enter a 10-digit mobile number or include the country code.");
+    /** True if {@code raw} is a mobile number in a form {@link #toE164} accepts. */
+    public static boolean isValid(String raw) {
+        try {
+            toE164(raw);
+            return true;
+        } catch (ApiException e) {
+            return false;
         }
-        if (digits.length() < 8 || digits.length() > 15) {
-            throw ApiException.badRequest("INVALID_PHONE", "Phone number has the wrong number of digits.");
-        }
-        if (digits.startsWith("91") && digits.length() != 12) {
-            throw ApiException.badRequest("INVALID_PHONE", "Indian numbers need 10 digits after +91.");
-        }
-        return "+" + digits;
     }
 
     /** Masks all but the last four digits, e.g. {@code ******3210}. */

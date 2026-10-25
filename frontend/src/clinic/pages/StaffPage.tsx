@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api';
 import { roleLabel } from '../App';
+import { PhoneInput, isMobile, toMobileDigits } from '../../shared/PhoneInput';
 import type { Role, StaffMember } from '../types';
 
 const ROLES: Role[] = ['DOCTOR', 'NURSE', 'FRONT_DESK', 'ADMIN'];
@@ -14,6 +15,24 @@ export function StaffPage() {
     api.get<StaffMember[]>('/clinic/staff').then(setStaff).catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load staff.'));
   }, []);
 
+  // The mobile number someone can sign in with (their password doesn't change). Empty removes it.
+  async function editPhone(s: StaffMember) {
+    const typed = window.prompt(`10-digit mobile number ${s.name} can sign in with (leave empty to remove):`, s.phone ?? '');
+    if (typed === null) return;
+    const digits = toMobileDigits(typed);
+    if (digits && !isMobile(digits)) {
+      window.alert('Enter exactly 10 digits, starting with 6, 7, 8 or 9.');
+      return;
+    }
+    setError(undefined);
+    try {
+      const updated = await api.put<StaffMember>(`/clinic/staff/${s.staffId}/phone`, { phone: digits });
+      setStaff((list) => list.map((x) => (x.staffId === updated.staffId ? updated : x)));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not save the mobile number.');
+    }
+  }
+
   return (
     <>
       <h1>Staff</h1>
@@ -26,6 +45,10 @@ export function StaffPage() {
               <b>{s.name}</b>
               <span className="chip ok">{s.roles.map(roleLabel).join(', ')}</span>
               <span className="muted small" style={{ overflowWrap: 'anywhere' }}>{s.email}</span>
+              <span className="small">
+                {s.phone ? <>Mobile <span className="mono">{s.phone}</span> </> : <span className="muted">No mobile for sign-in </span>}
+                <button type="button" className="link small" onClick={() => editPhone(s)}>{s.phone ? 'Change' : 'Add mobile'}</button>
+              </span>
               {s.doctor && <span className="small">{s.doctor.registrationNo} · {s.doctor.registrationCouncil}</span>}
             </div>
           ))}
@@ -58,7 +81,7 @@ function AddStaff({ onAdded }: { onAdded: (s: StaffMember) => void }) {
                              qualifications: f.qualifications, specialty: f.specialty || undefined } : undefined,
       });
       onAdded(s);
-      setDone(`${s.name} can now sign in with ${s.email}.`);
+      setDone(`${s.name} can now sign in with ${s.email}${s.phone ? ` or ${s.phone}` : ''}.`);
       setF(blank);
       setRoles([]);
     } catch (err) {
@@ -83,7 +106,9 @@ function AddStaff({ onAdded }: { onAdded: (s: StaffMember) => void }) {
       <div className="fields">
         <label className="field">Full name<input id="staffName" required value={f.name} onChange={set('name')} /></label>
         <label className="field">Email<input id="staffEmail" type="email" required value={f.email} onChange={set('email')} /></label>
-        <label className="field">Mobile<input id="staffPhone" type="tel" value={f.phone} onChange={set('phone')} /></label>
+        <label className="field">Mobile (can sign in with it)
+          <PhoneInput id="staffPhone" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+        </label>
         <label className="field">Password (new staff, 10+ characters)
           <input id="staffPassword" type="password" minLength={10} value={f.password} onChange={set('password')} />
         </label>

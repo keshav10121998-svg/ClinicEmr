@@ -4,6 +4,7 @@ import { api, ApiError } from '../api';
 import type { DuplicateCandidate, Patient } from '../types';
 import { ageSex, date } from '../format';
 import { AccessRequestFlow } from '../components/AccessRequestFlow';
+import { PhoneInput, toMobileDigits } from '../../shared/PhoneInput';
 
 interface RecentPatient {
   publicId: string;
@@ -112,7 +113,7 @@ export function PatientsPage() {
 /** Short form: name, sex, age and mobile. Date of birth, ABHA and blood group are under "More". */
 function RegisterPatient({ initialPhone, initialName, onDone }:
   { initialPhone: string; initialName: string; onDone: (p: Patient) => void }) {
-  const [f, setF] = useState({ name: initialName, gender: '', ageYears: '', dob: '', phone: initialPhone, abhaNumber: '', bloodGroup: '' });
+  const [f, setF] = useState({ name: initialName, gender: '', ageYears: '', dob: '', phone: toMobileDigits(initialPhone), abhaNumber: '', bloodGroup: '' });
   const [more, setMore] = useState(false);
   const [error, setError] = useState<ApiError>();
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>();
@@ -173,7 +174,7 @@ function RegisterPatient({ initialPhone, initialName, onDone }:
           <input id="regAge" type="number" inputMode="numeric" min={0} max={130} value={f.ageYears} onChange={set('ageYears')} disabled={!!f.dob} />
         </label>
         <label className="field">Mobile number
-          <input id="regPhone" type="tel" inputMode="tel" required value={f.phone} onChange={set('phone')} placeholder="98765 43210" />
+          <PhoneInput id="regPhone" required value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
         </label>
       </div>
       {more ? (

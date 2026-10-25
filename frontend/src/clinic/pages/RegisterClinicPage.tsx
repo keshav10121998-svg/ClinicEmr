@@ -2,12 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { useSession } from '../session';
+import { PhoneInput } from '../../shared/PhoneInput';
 
 export function RegisterClinicPage() {
   const { login } = useSession();
   const [f, setF] = useState({
     clinicName: '', city: '', state: '', pincode: '', clinicPhone: '',
-    name: '', email: '', password: '',
+    name: '', email: '', mobile: '', password: '',
     isDoctor: true, registrationNo: '', registrationCouncil: '', qualifications: '',
   });
   const [error, setError] = useState<ApiError>();
@@ -24,7 +25,7 @@ export function RegisterClinicPage() {
         clinic: { name: f.clinicName, city: f.city || undefined, state: f.state || undefined,
                   pincode: f.pincode || undefined, phone: f.clinicPhone || undefined },
         admin: {
-          name: f.name, email: f.email, password: f.password,
+          name: f.name, email: f.email, phone: f.mobile || undefined, password: f.password,
           doctor: f.isDoctor ? { registrationNo: f.registrationNo, registrationCouncil: f.registrationCouncil,
                                  qualifications: f.qualifications } : undefined,
         },
@@ -59,12 +60,17 @@ export function RegisterClinicPage() {
           <label className="field">City<input id="city" value={f.city} onChange={set('city')} /></label>
           <label className="field">State<input id="state" value={f.state} onChange={set('state')} /></label>
           <label className="field">PIN code<input id="pincode" inputMode="numeric" value={f.pincode} onChange={set('pincode')} /></label>
-          <label className="field">Clinic phone<input id="clinicPhone" type="tel" value={f.clinicPhone} onChange={set('clinicPhone')} /></label>
+          <label className="field">Clinic mobile
+            <PhoneInput id="clinicPhone" value={f.clinicPhone} onChange={(v) => setF({ ...f, clinicPhone: v })} />
+          </label>
         </div>
         <h3>You</h3>
         <div className="fields">
           <label className="field">Full name<input id="name" required value={f.name} onChange={set('name')} /></label>
           <label className="field">Email<input id="signupEmail" type="email" required value={f.email} onChange={set('email')} /></label>
+          <label className="field">Your mobile number (sign in with it too)
+            <PhoneInput id="signupMobile" value={f.mobile} onChange={(v) => setF({ ...f, mobile: v })} />
+          </label>
           <label className="field">Password (10+ characters)
             <input id="signupPassword" type="password" minLength={10} required value={f.password} onChange={set('password')} />
           </label>

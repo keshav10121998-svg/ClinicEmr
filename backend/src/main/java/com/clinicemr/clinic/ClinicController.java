@@ -7,7 +7,9 @@ import jakarta.validation.Valid;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,5 +49,14 @@ public class ClinicController {
     @ResponseStatus(HttpStatus.CREATED)
     public ClinicService.StaffView addStaff(ClinicContext ctx, @Valid @RequestBody ClinicDtos.AddStaffRequest req) {
         return clinics.addStaff(ctx, req);
+    }
+
+    public record SetPhoneRequest(String phone) {
+    }
+
+    /** Admins set or remove (blank) a staff member's mobile number, which they can then sign in with. */
+    @PutMapping("/api/v1/clinic/staff/{staffId}/phone")
+    public ClinicService.StaffView setStaffPhone(ClinicContext ctx, @PathVariable long staffId, @RequestBody SetPhoneRequest req) {
+        return clinics.setStaffPhone(ctx, staffId, req.phone());
     }
 }

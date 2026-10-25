@@ -33,7 +33,8 @@ public class ClinicService {
                              String phone, String status) {
     }
 
-    public record StaffView(long staffId, String name, String email, List<String> roles, DoctorDetails doctor) {
+    /** {@code phone} is the 10-digit mobile the person can also sign in with, if one is set. */
+    public record StaffView(long staffId, String name, String email, String phone, List<String> roles, DoctorDetails doctor) {
     }
 
     /**
@@ -110,11 +111,11 @@ public class ClinicService {
     }
 
     public List<StaffView> listStaff(ClinicContext ctx) {
-        record Row(long staffId, String name, String email, String role, String registrationNo,
+        record Row(long staffId, String name, String email, String phoneE164, String role, String registrationNo,
                    String registrationCouncil, String qualifications, String specialty) {
         }
         List<Row> rows = jdbc.sql("""
-                SELECT s.id AS staff_id, s.name, s.email, m.role,
+                SELECT s.id AS staff_id, s.name, s.email, s.phone_e164, m.role,
                        d.registration_no, d.registration_council, d.qualifications, d.specialty
                   FROM clinic_member m
                   JOIN staff_user s ON s.id = m.staff_id
@@ -133,20 +134,23 @@ public class ClinicService {
                     Row r = list.get(0);
                     DoctorDetails doctor = r.registrationNo() == null ? null
                             : new DoctorDetails(r.registrationNo(), r.registrationCouncil(), r.qualifications(), r.specialty());
-                    return new StaffView(r.staffId(), r.name(), r.email(), list.stream().map(Row::role).toList(), doctor);
+                    return new StaffView(r.staffId(), r.name(), r.email(),
+                            r.phoneE164() == null ? null : r.phoneE164().substring(3), list.stream().map(Row::role).toList(), doctor);
                 })
                 .toList();
     }
 
     private long createStaff(long clinicId, String name, String email, String phone, String password,
                              Set<ClinicRole> roles, DoctorDetails doctor) {
+        String mobile = optionalPhone(phone);
+        ensurePhoneFree(mobile, null);
         long staffId = jdbc.sql("""
                 INSERT INTO staff_user (email, phone_e164, name, password_hash)
                 VALUES (lower(:email), :phone, :name, :hash)
                 RETURNING id
                 """)
                 .param("email", email.trim())
-                .param("phone", optionalPhone(phone))
+                .param("phone", mobile)
                 .param("name", name.trim())
                 .param("hash", passwords.encode(password))
                 .query(Long.class)
@@ -183,6 +187,49 @@ public class ClinicService {
                 .param("qualifications", d.qualifications().trim())
                 .param("specialty", d.specialty())
                 .update();
+    }
+
+    /**
+     * Sets or removes (blank) the mobile number a staff member of this clinic signs in with. Admins only. Only the
+     * sign-in name changes; the password stays the same.
+     */
+    @Transactional
+    public StaffView setStaffPhone(ClinicContext ctx, long staffId, String phone) {
+        ctx.require(ClinicRole.ADMIN);
+        boolean member = jdbc.sql("SELECT EXISTS (SELECT 1 FROM clinic_member WHERE clinic_id = :clinicId AND staff_id = :staffId)")
+                .param("clinicId", ctx.clinicId())
+                .param("staffId", staffId)
+                .query(Boolean.class)
+                .single();
+        if (!member) {
+            throw ApiException.notFound("Staff member");
+        }
+        String mobile = optionalPhone(phone);
+        ensurePhoneFree(mobile, staffId);
+        jdbc.sql("UPDATE staff_user SET phone_e164 = :phone WHERE id = :id")
+                .param("phone", mobile)
+                .param("id", staffId)
+                .update();
+        audit.staff(ctx.staffId(), ctx.clinicId(), "STAFF_PHONE_SET", "staff_user", String.valueOf(staffId),
+                Map.of("removed", mobile == null));
+        return listStaff(ctx).stream().filter(s -> s.staffId() == staffId).findFirst().orElseThrow();
+    }
+
+    private void ensurePhoneFree(String mobile, Long exceptStaffId) {
+        if (mobile == null) {
+            return;
+        }
+        boolean taken = jdbc.sql("""
+                SELECT EXISTS (SELECT 1 FROM staff_user WHERE phone_e164 = :phone AND (CAST(:except AS bigint) IS NULL OR id <> :except))
+                """)
+                .param("phone", mobile)
+                .param("except", exceptStaffId)
+                .query(Boolean.class)
+                .single();
+        if (taken) {
+            throw new ApiException(HttpStatus.CONFLICT, "PHONE_IN_USE",
+                    "This mobile number is already used to sign in to another staff account.");
+        }
     }
 
     private static String optionalPhone(String phone) {

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { useSession, type SignedIn } from '../session';
 import { SignInSwitch } from '../../shared/SignInSwitch';
+import { PhoneInput, isMobile } from '../../shared/PhoneInput';
 
 type Mode = 'pin' | 'code';
 
@@ -81,7 +82,7 @@ export function SignInPage() {
     if (pinsOk()) run(() => api.post<SignedIn>('/auth/patient/otp/verify', { ...scanned!, otp: scanned!.code, newPin }));
   }
 
-  const phoneOk = phone.replace(/\D/g, '').length >= 10;
+  const phoneOk = isMobile(phone);
   const newPinOk = newPin.length >= 4 && again.length >= 4;
   const choosePin = (
     <>
@@ -124,8 +125,7 @@ export function SignInPage() {
         {error && <div className="alert error" role="alert">{error}</div>}
 
         <label className="field">Mobile number
-          <input id="phone" type="tel" inputMode="tel" autoComplete="tel" required placeholder="98765 43210"
-                 value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <PhoneInput id="phone" required autoComplete="tel-national" value={phone} onChange={setPhone} />
         </label>
 
         {mode === 'pin' ? (

@@ -16,13 +16,10 @@ class PhoneNumbersTest {
         assertThat(PhoneNumbers.toE164(raw)).isEqualTo("+919876543210");
     }
 
-    @Test
-    void keepsOtherCountryCodes() {
-        assertThat(PhoneNumbers.toE164("+44 20 7946 0958")).isEqualTo("+442079460958");
-    }
-
+    // Exactly 10 digits: fewer or more are refused, as are landlines and other countries
     @ParameterizedTest
-    @ValueSource(strings = {"12345", "1234567890", "+91 98765", "abc", " "})
+    @ValueSource(strings = {"12345", "987654321", "98765432101", "987654321012", "1234567890", "5876543210",
+            "+91 98765", "+44 20 7946 0958", "0120 4567890", "abc", " "})
     void rejectsInvalid(String raw) {
         assertThatThrownBy(() -> PhoneNumbers.toE164(raw)).isInstanceOf(ApiException.class);
     }
