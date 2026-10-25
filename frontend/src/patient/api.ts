@@ -58,13 +58,14 @@ export const api = {
   del: <T>(path: string) => request<T>('DELETE', path),
 };
 
-/** Opens a file that needs the sign-in header. The tab is opened inside the tap so the browser allows it. */
-export async function openAuthed(path: string) {
+/**
+ * Opens a PDF. {@code linkPath} makes it and returns a short-lived link; phone browsers can open a real address but
+ * not a PDF held in page memory. The tab is opened inside the tap so the browser allows it.
+ */
+export async function openAuthed(linkPath: string) {
   const tab = window.open('', '_blank');
   try {
-    const res = await fetch(`/api/v1${path}`, { headers: headers(false) });
-    if (!res.ok) throw new ApiError({ status: res.status, detail: "The file couldn't be opened." });
-    const url = URL.createObjectURL(await res.blob());
+    const { url } = await api.post<{ url: string }>(linkPath);
     if (tab) tab.location.href = url;
     else window.location.href = url;
   } catch (e) {

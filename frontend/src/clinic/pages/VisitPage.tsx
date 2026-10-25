@@ -520,8 +520,8 @@ function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; ca
       <div className="between">
         <h2>Visit</h2>
         <div className="row">
-          <button className="primary" onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A5`)}>Print</button>
-          <button onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription.pdf?paper=A4`)}>Print A4</button>
+          <button className="primary" onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription-link?paper=A5`)}>Print</button>
+          <button onClick={() => openPdf(`/clinic/encounters/${encounter.id}/prescription-link?paper=A4`)}>Print A4</button>
           {canAmend && <button onClick={onAmend}>Correct</button>}
         </div>
       </div>

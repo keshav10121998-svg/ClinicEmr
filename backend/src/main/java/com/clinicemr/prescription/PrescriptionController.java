@@ -9,6 +9,7 @@ import com.clinicemr.clinical.SignedSnapshot;
 import com.clinicemr.shared.audit.AuditService;
 import com.clinicemr.shared.error.ApiException;
 import com.clinicemr.shared.security.ClinicContext;
+import com.clinicemr.shared.web.PdfLinks;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,6 +18,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +29,11 @@ public class PrescriptionController {
     private final PrescriptionPdfRenderer renderer;
     private final JdbcClient jdbc;
     private final AuditService audit;
+    private final PdfLinks links;
 
     public PrescriptionController(EncounterService encounters, PrescriptionPdfRenderer renderer, JdbcClient jdbc,
-                                  AuditService audit) {
+                                  AuditService audit, PdfLinks links) {
+        this.links = links;
         this.encounters = encounters;
         this.renderer = renderer;
         this.jdbc = jdbc;
@@ -41,6 +45,26 @@ public class PrescriptionController {
     @Transactional
     public ResponseEntity<byte[]> pdf(ClinicContext ctx, @PathVariable UUID id,
                                       @RequestParam(defaultValue = "A5") String paper) {
+        Rendered r = render(ctx, id, paper);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename(r.filename()).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(r.bytes());
+    }
+
+    /** The same prescription behind a short-lived link the browser can open in a new tab (works on phones too). */
+    @PostMapping("/api/v1/clinic/encounters/{id}/prescription-link")
+    @Transactional
+    public PdfLinks.Link link(ClinicContext ctx, @PathVariable UUID id, @RequestParam(defaultValue = "A5") String paper) {
+        Rendered r = render(ctx, id, paper);
+        return links.park(r.filename(), r.bytes());
+    }
+
+    private record Rendered(String filename, byte[] bytes) {
+    }
+
+    private Rendered render(ClinicContext ctx, UUID id, String paper) {
         PrescriptionPdfRenderer.Paper size;
         try {
             size = PrescriptionPdfRenderer.Paper.valueOf(paper.toUpperCase(Locale.ROOT));
@@ -55,10 +79,6 @@ public class PrescriptionController {
                 Map.of("version", snapshot.version(), "paper", size.name()));
 
         String filename = "prescription-" + snapshot.patient().mrn() + "-v" + snapshot.version() + ".pdf";
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename(filename).build().toString())
-                .header(HttpHeaders.CACHE_CONTROL, "no-store")
-                .body(pdf);
+        return new Rendered(filename, pdf);
     }
 }

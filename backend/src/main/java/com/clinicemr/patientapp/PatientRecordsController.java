@@ -7,6 +7,7 @@ import com.clinicemr.records.DocumentDtos.DocumentDetail;
 import com.clinicemr.records.DocumentDtos.StartUploadRequest;
 import com.clinicemr.records.DocumentDtos.StartUploadResponse;
 import com.clinicemr.shared.security.PatientContext;
+import com.clinicemr.shared.web.PdfLinks;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -29,8 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class PatientRecordsController {
 
     private final PatientRecordsService records;
+    private final PdfLinks pdfLinks;
 
-    public PatientRecordsController(PatientRecordsService records) {
+    public PatientRecordsController(PatientRecordsService records, PdfLinks pdfLinks) {
+        this.pdfLinks = pdfLinks;
         this.records = records;
     }
 
@@ -54,6 +57,13 @@ public class PatientRecordsController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename(pdf.filename()).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .body(pdf.bytes());
+    }
+
+    /** The prescription behind a short-lived link the phone's browser can open. */
+    @PostMapping("/visits/{encounterId}/prescription-link")
+    public PdfLinks.Link prescriptionLink(PatientContext p, @PathVariable UUID profileId, @PathVariable UUID encounterId) {
+        PatientRecordsService.PrescriptionPdf pdf = records.prescriptionPdf(p, profileId, encounterId);
+        return pdfLinks.park(pdf.filename(), pdf.bytes());
     }
 
     @GetMapping("/documents")

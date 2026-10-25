@@ -98,7 +98,7 @@ export function PatientPage() {
                   <td className="small">{v.treatmentGiven || <span className="muted">—</span>}</td>
                   <td className="small">{v.medicines || <span className="muted">—</span>}</td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    <button className="link" onClick={() => openPdf(`/clinic/encounters/${v.id}/prescription.pdf`)}>Print</button>
+                    <button className="link" onClick={() => openPdf(`/clinic/encounters/${v.id}/prescription-link`)}>Print</button>
                   </td>
                 </tr>
               ))}

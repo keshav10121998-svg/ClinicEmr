@@ -72,14 +72,14 @@ export const api = {
 };
 
 /**
- * Opens a PDF that needs auth headers. The tab is opened first, inside the click, so popup blockers allow it.
+ * Opens a PDF in a new tab. {@code linkPath} is an endpoint that makes the PDF and returns a short-lived link to it;
+ * a real address works on phones, where a PDF held in page memory can't be shown. The tab is opened first, inside
+ * the tap, so pop-up blockers allow it; if one blocks it anyway, this tab goes to the PDF instead.
  */
-export async function openPdf(path: string) {
+export async function openPdf(linkPath: string) {
   const tab = window.open('', '_blank');
   try {
-    const res = await fetch(`/api/v1${path}`, { headers: headers(false) });
-    if (!res.ok) throw new ApiError({ status: res.status, detail: "The prescription couldn't be generated." });
-    const url = URL.createObjectURL(await res.blob());
+    const { url } = await api.post<{ url: string }>(linkPath);
     if (tab) {
       tab.location.href = url;
     } else {
@@ -87,7 +87,7 @@ export async function openPdf(path: string) {
     }
   } catch (e) {
     tab?.close();
-    throw e;
+    window.alert(e instanceof ApiError ? e.message : "The prescription couldn't be opened. Try again.");
   }
 }
 

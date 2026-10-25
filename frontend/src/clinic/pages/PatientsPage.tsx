@@ -161,7 +161,7 @@ function RegisterPatient({ initialPhone, initialName, onDone }:
         <label className="field" style={{ gridColumn: '1 / -1' }}>Full name
           <input id="regName" required autoFocus value={f.name} onChange={set('name')} />
         </label>
-        <div className="field" role="radiogroup" aria-label="Sex">
+        <div className="field" role="radiogroup" aria-label="Sex" style={{ gridColumn: '1 / -1' }}>
           Sex
           <div className="segmented">
             {[['F', 'Female'], ['M', 'Male'], ['O', 'Other']].map(([v, l]) => (

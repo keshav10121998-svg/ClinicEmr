@@ -19,7 +19,7 @@ export function VisitPage() {
   async function download() {
     setError(undefined);
     try {
-      await openAuthed(`/patient/profiles/${profileId}/visits/${encounterId}/prescription.pdf`);
+      await openAuthed(`/patient/profiles/${profileId}/visits/${encounterId}/prescription-link`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not open the prescription.');
     }
