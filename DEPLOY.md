@@ -4,10 +4,10 @@ Everything runs on free plans, with no card needed:
 
 | Piece | Service | Free plan |
 |---|---|---|
-| The app (screens + API, one Docker image) | **Render** web service, Singapore | 512 MB, sleeps after 15 min idle (kept awake in step 4) |
+| The app (screens + API, one Docker image) | **Render** web service, Singapore | 512 MB, sleeps after 15 min idle (the app pings itself every 14 min) |
 | Database (PostgreSQL) | **Supabase**, Mumbai | 500 MB, paused after 7 days with no use at all |
 | Reports and photos | **Supabase Storage** (S3-compatible), Mumbai | 1 GB |
-| Keep-awake ping | **cron-job.org** | free |
+| Keep-awake ping | built in (`KEEP_AWAKE=true`) | free |
 
 Patient data stays in Mumbai; only the app server runs in Singapore. When the pilot grows, move the app to a paid
 server. Nothing in the app changes, only these settings.
@@ -69,12 +69,16 @@ server. Nothing in the app changes, only these settings.
 5. Open the address shown at the top (like `https://clinic-emr.onrender.com`). If it differs from what you put in
    `PUBLIC_BASE_URL`, go to **Environment**, fix it and save; Render restarts the app.
 
-## 4. Keep it awake (cron-job.org)
+## 4. Keep it awake (built in)
 
-Render's free app sleeps after 15 minutes without visitors, and then takes about a minute to wake. To avoid that:
+Render's free app sleeps after 15 minutes without visitors, and then takes about a minute to wake. With
+`KEEP_AWAKE=true` (already in `render.yaml`) the app visits its own `PUBLIC_BASE_URL/actuator/health` every 14 minutes,
+so it never sleeps; that visit also touches the database, so Supabase doesn't pause. **`PUBLIC_BASE_URL` must be the
+app's real Render address** for this to work. If you created the service by hand, add `KEEP_AWAKE` = `true` under
+**Environment**. In the logs you'll see `Keep-awake on: visiting … every 14 minutes`.
 
-1. Sign up at **cron-job.org** (free).
-2. **Create cronjob**: URL `https://<your-app>.onrender.com/actuator/health`, every **10 minutes**, then save.
+Optional extra safety: a free **cron-job.org** job hitting the same address every 10 minutes also wakes the app
+after a Render restart.
 
 Render's free plan includes 750 hours a month, enough for one app awake all the time.
 
@@ -90,8 +94,8 @@ Push to GitHub (`git push`); Render rebuilds and redeploys automatically in abou
 
 ## Good to know
 
-- **Database pauses:** Supabase pauses a free project after 7 days with no activity. Daily use (and the keep-awake
-  ping, which touches the database) prevents it. If it happens, click **Restore** in Supabase.
+- **Database pauses:** Supabase pauses a free project after 7 days with no activity. The built-in keep-awake visit
+  touches the database every 14 minutes, which prevents it. If it happens, click **Restore** in Supabase.
 - **Backups:** the free plan has no automatic backups you can restore yourself. Before real patients rely on it,
   move to a paid database or add a nightly export.
 - **SMS:** not needed. Patients sign in with the clinic's QR code and their PIN.

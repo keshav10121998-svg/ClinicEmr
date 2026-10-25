@@ -13,6 +13,8 @@ services:
     envVars:
       - key: JWT_SECRET
         generateValue: true    # random secret, created once by Render
+      - key: KEEP_AWAKE        # the app visits itself every 14 minutes so the free plan doesn't sleep
+        value: "true"
       - key: PUBLIC_BASE_URL   # this service's address, e.g. https://clinic-emr.onrender.com
         sync: false
       # Supabase → Connect → Session pooler (IPv4). JDBC form: jdbc:postgresql://<host>:5432/postgres?sslmode=require

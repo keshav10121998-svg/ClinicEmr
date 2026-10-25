@@ -219,7 +219,7 @@ a real SMS provider through the outbox with retries, virus scanning of uploads, 
 ## Deploy for free
 
 Step by step in [DEPLOY.md](DEPLOY.md): the app on Render's free plan (from the root `Dockerfile` and `render.yaml`),
-the database and file storage on Supabase (Mumbai), and cron-job.org to keep it awake. Files are then served through
+the database and file storage on Supabase (Mumbai), and a built-in self-ping (`KEEP_AWAKE=true`) to keep it awake. Files are then served through
 the backend (`STORAGE_DOWNLOAD_MODE=proxy`), and the database pool stays small (`DB_POOL_SIZE=5`).
 
 ## Run locally

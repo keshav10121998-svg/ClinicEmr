@@ -47,6 +47,10 @@ app:
     presign-ttl: PT5M
     max-file-bytes: 20971520
 
+  # Visits the app's own public health address every 14 minutes so free hosts (Render) don't put it to sleep
+  keep-awake:
+    enabled: ${KEEP_AWAKE:false}
+
 management:
   endpoints:
     web:
