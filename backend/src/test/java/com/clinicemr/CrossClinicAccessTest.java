@@ -123,7 +123,7 @@ class CrossClinicAccessTest extends IntegrationTestBase {
         String challenge = body(mvc.perform(post("/api/v1/auth/patient/otp").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"phone\": \"%s\"}".formatted(phone))).andExpect(status().isOk())).get("challengeId").asText();
         String patientToken = body(mvc.perform(post("/api/v1/auth/patient/otp/verify").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"challengeId\": \"%s\", \"otp\": \"%s\"}".formatted(challenge, lastOtp(e164))))
+                .content("{\"challengeId\": \"%s\", \"otp\": \"%s\", \"newPin\": \"4826\"}".formatted(challenge, lastOtp(e164))))
                 .andExpect(status().isOk())).get("accessToken").asText();
 
         patient(get("/api/v1/patient/profiles"), patientToken)

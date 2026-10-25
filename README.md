@@ -87,9 +87,10 @@ Phone-first screens for patients and families, in the same app under `/my`:
 
 - **Sign in, free (no SMS):**
   - *First time, or a forgotten PIN:* at the clinic, staff tap **Patient app sign-in code** on the patient's page.
-    A QR and a 6-digit code appear (one use, 15 minutes). The patient scans the QR with their phone camera, which
-    opens the app signed in, or types their mobile number and the code under *I have a code from the clinic*.
-  - The app then asks them to choose a 4–6 digit PIN (easy ones like 1111 or 1234 are refused).
+    A QR and a 6-digit code appear (one use, 15 minutes). The patient scans the QR with their phone camera, or types
+    their mobile number and the code under *I have a code from the clinic*.
+  - Either way they must choose a 4–6 digit PIN in the same step; they aren't signed in until it is saved (easy
+    ones like 1111 or 1234 are refused, without using up the code). A forgotten PIN is replaced the same way.
   - *At home:* mobile number + PIN. Five wrong PINs lock it for 15 minutes. A wrong PIN and an unknown number get
     the same answer, so the page doesn't reveal who uses the app.
   - The phone stays signed in for 90 days and renews each time the app opens. Changing the PIN signs out every
@@ -245,7 +246,8 @@ npm run dev
 
 Open http://localhost:5173. For a clinic, choose **Set up your clinic** and sign in. For a patient, tap
 **Patient / family**. To sign a patient in, open them in the clinic screens, tap **Patient app sign-in code**, and
-scan the QR or type their mobile number and the code; then choose a PIN. Next time, sign in with mobile + PIN.
+scan the QR or type their mobile number and the code, choosing a PIN in the same step. Next time, sign in with
+mobile + PIN.
 
 **One server for everything** (how it is deployed): `mvnw package` builds the web app and packs it into the
 backend jar, so the backend serves the screens and the API from one address:

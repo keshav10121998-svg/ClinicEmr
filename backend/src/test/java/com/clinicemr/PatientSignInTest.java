@@ -49,24 +49,26 @@ class PatientSignInTest extends IntegrationTestBase {
                 {"challengeId": "%s", "otp": "%s"}""".formatted(code.get("challengeId").asText(), code.get("code").asText()))
                 .andExpect(status().isGone());
 
-        // Typed in with the mobile number: signs in, and the app is told to ask for a PIN
+        // First sign-in can't finish without choosing a PIN; neither that nor an easy PIN uses up the code
+        String typed = newer.get("code").asText();
+        anon(post("/api/v1/auth/patient/code/verify"), """
+                {"phone": "%s", "otp": "%s"}""".formatted(phone, typed))
+                .andExpect(status().isPreconditionRequired()).andExpect(jsonPath("$.code").value("PIN_REQUIRED"));
+        anon(post("/api/v1/auth/patient/code/verify"), """
+                {"phone": "%s", "otp": "%s", "newPin": "1111"}""".formatted(phone, typed)).andExpect(status().isBadRequest());
+        anon(post("/api/v1/auth/patient/code/verify"), """
+                {"phone": "%s", "otp": "%s", "newPin": "3456"}""".formatted(phone, typed)).andExpect(status().isBadRequest());
+
+        // Code and a good PIN together: signed in with the PIN already set
         JsonNode signedIn = body(anon(post("/api/v1/auth/patient/code/verify"), """
-                {"phone": "%s", "otp": "%s"}""".formatted(phone, newer.get("code").asText())).andExpect(status().isOk()));
-        assertThat(signedIn.get("pinSet").asBoolean()).isFalse();
+                {"phone": "%s", "otp": "%s", "newPin": "4826"}""".formatted(phone, typed)).andExpect(status().isOk()));
+        assertThat(signedIn.get("pinSet").asBoolean()).isTrue();
         assertThat(signedIn.get("profiles").asInt()).isEqualTo(1);
-        String token = signedIn.get("accessToken").asText();
+        String pinToken = signedIn.get("accessToken").asText();
+        patient(get("/api/v1/patient/account"), pinToken, null).andExpect(jsonPath("$.pinSet").value(true));
         // Single use
         anon(post("/api/v1/auth/patient/code/verify"), """
-                {"phone": "%s", "otp": "%s"}""".formatted(phone, newer.get("code").asText())).andExpect(status().isGone());
-
-        // Easy PINs are refused; a good one is set, and this phone gets a new sign-in while older ones stop working
-        patient(post("/api/v1/patient/pin"), token, "{\"pin\": \"1111\"}").andExpect(status().isBadRequest());
-        patient(post("/api/v1/patient/pin"), token, "{\"pin\": \"3456\"}").andExpect(status().isBadRequest());
-        JsonNode afterPin = body(patient(post("/api/v1/patient/pin"), token, "{\"pin\": \"4826\"}").andExpect(status().isOk()));
-        assertThat(afterPin.get("pinSet").asBoolean()).isTrue();
-        patient(get("/api/v1/patient/profiles"), token, null).andExpect(status().isUnauthorized());
-        String pinToken = afterPin.get("accessToken").asText();
-        patient(get("/api/v1/patient/account"), pinToken, null).andExpect(jsonPath("$.pinSet").value(true));
+                {"phone": "%s", "otp": "%s", "newPin": "4826"}""".formatted(phone, typed)).andExpect(status().isGone());
 
         // At home: mobile number and PIN
         String home = body(anon(post("/api/v1/auth/patient/pin"), """
@@ -93,14 +95,16 @@ class PatientSignInTest extends IntegrationTestBase {
         anon(post("/api/v1/auth/patient/pin"), "{\"phone\": \"%s\", \"pin\": \"7391\"}".formatted(uniquePhone()))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("PIN_INVALID"));
 
-        // Forgot PIN: a fresh counter code lets them set a new one without the old
+        // Forgot PIN: scanning a fresh counter code sets a new one without the old, and signs out other phones
+        String oldPhone = body(anon(post("/api/v1/auth/patient/pin"), "{\"phone\": \"%s\", \"pin\": \"7391\"}".formatted(phone))
+                .andExpect(status().isOk())).get("accessToken").asText();
         JsonNode reset = body(perform(post("/api/v1/clinic/patients/" + patientId + "/app-sign-in-code"), desk, clinic, null)
                 .andExpect(status().isOk()));
-        String viaQr = body(anon(post("/api/v1/auth/patient/otp/verify"), """
-                {"challengeId": "%s", "otp": "%s"}""".formatted(reset.get("challengeId").asText(), reset.get("code").asText()))
+        String renewed = body(anon(post("/api/v1/auth/patient/otp/verify"), """
+                {"challengeId": "%s", "otp": "%s", "newPin": "5038"}""".formatted(reset.get("challengeId").asText(), reset.get("code").asText()))
                 .andExpect(status().isOk())).get("accessToken").asText();
-        String renewed = body(patient(post("/api/v1/patient/pin"), viaQr, "{\"pin\": \"5038\"}").andExpect(status().isOk()))
-                .get("accessToken").asText();
+        patient(get("/api/v1/patient/profiles"), oldPhone, null).andExpect(status().isUnauthorized());
+        anon(post("/api/v1/auth/patient/pin"), "{\"phone\": \"%s\", \"pin\": \"5038\"}".formatted(phone)).andExpect(status().isOk());
 
         // Opening the app swaps the sign-in for a fresh one
         JsonNode fresh = body(patient(post("/api/v1/patient/session/renew"), renewed, null).andExpect(status().isOk()));

@@ -62,9 +62,9 @@ export function AppSignInCode({ patientId }: { patientId: string }) {
       </div>
       {secondsLeft > 0 ? (
         <>
-          <p className="small">Ask the patient to <b>scan this with their phone camera</b>. It opens the app signed in, then they set a PIN for next time.</p>
+          <p className="small">Ask the patient to <b>scan this with their phone camera</b>. They choose a PIN on their phone and their records open. Next time they sign in with mobile number + PIN.</p>
           <div className="qr" role="img" aria-label="QR code for patient app sign-in" dangerouslySetInnerHTML={{ __html: svg }} />
-          <p className="small muted">Or on their phone: open <b>{window.location.host}/my</b>, tap <b>I have a code from the clinic</b>, and enter their mobile number {code.phone} and this code:</p>
+          <p className="small muted">Or on their phone: open <b>{window.location.host}/my</b>, tap <b>I have a code from the clinic</b>, enter their mobile number {code.phone}, this code, and a PIN:</p>
           <div className="big-code" aria-label={`Code ${code.code.split('').join(' ')}`}>{code.code.slice(0, 3)} {code.code.slice(3)}</div>
           <p className="small muted">Works once, for {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} more minutes.</p>
         </>

@@ -65,13 +65,19 @@ public class PatientAuthController {
     public record CodeSent(UUID challengeId, String phone, Instant expiresAt) {
     }
 
+    /**
+     * {@code newPin} is the PIN the patient chooses while signing in with a code. It is required when the account has
+     * no PIN yet (first sign-in), so nobody gets in without one; when a PIN exists it replaces it (forgotten PIN).
+     */
     public record VerifyCode(@NotNull UUID challengeId,
-                             @NotNull @Pattern(regexp = "\\d{6}", message = "must be the 6-digit code") String otp) {
+                             @NotNull @Pattern(regexp = "\\d{6}", message = "must be the 6-digit code") String otp,
+                             @Pattern(regexp = "\\d{4,6}", message = "must be 4 to 6 digits") String newPin) {
     }
 
     /** A code typed in by hand: the mobile number tells us which code it is. */
     public record VerifyPhoneCode(@NotBlank String phone,
-                                  @NotNull @Pattern(regexp = "\\d{6}", message = "must be the 6-digit code") String otp) {
+                                  @NotNull @Pattern(regexp = "\\d{6}", message = "must be the 6-digit code") String otp,
+                                  @Pattern(regexp = "\\d{4,6}", message = "must be 4 to 6 digits") String newPin) {
     }
 
     public record PinSignIn(@NotBlank String phone,
@@ -115,7 +121,7 @@ public class PatientAuthController {
     @PostMapping("/otp/verify")
     @Transactional(noRollbackFor = ApiException.class)
     public SignedIn verify(@Valid @RequestBody VerifyCode req) {
-        return signInWithCode(req.challengeId(), req.otp());
+        return signInWithCode(req.challengeId(), req.otp(), req.newPin());
     }
 
     /** A code typed in with the mobile number: checked against the newest unused code for that number. */
@@ -134,7 +140,7 @@ public class PatientAuthController {
                 .optional()
                 .orElseThrow(() -> new ApiException(HttpStatus.GONE, "OTP_EXPIRED",
                         "There's no valid code for this number. Ask the clinic for a new one."));
-        return signInWithCode(id, req.otp());
+        return signInWithCode(id, req.otp(), req.newPin());
     }
 
     @PostMapping("/pin")
@@ -186,7 +192,11 @@ public class PatientAuthController {
         return finishSignIn(a.id(), phone, "pin");
     }
 
-    private SignedIn signInWithCode(UUID challengeId, String code) {
+    private SignedIn signInWithCode(UUID challengeId, String code, String newPin) {
+        // Checked before the code is used up, so a too-easy PIN doesn't waste the code
+        if (newPin != null && PatientAccountController.isWeak(newPin)) {
+            throw ApiException.badRequest("PIN_TOO_EASY", "That PIN is too easy to guess. Avoid repeated or sequential digits.");
+        }
         record Challenge(String phoneE164, String codeHash, int attempts, Instant expiresAt, Instant consumedAt) {
         }
         Challenge c = jdbc.sql("""
@@ -198,6 +208,13 @@ public class PatientAuthController {
                 .orElseThrow(() -> ApiException.notFound("Sign-in code"));
         if (c.consumedAt() != null || Instant.now().isAfter(c.expiresAt()) || c.attempts() >= OtpCodes.MAX_ATTEMPTS) {
             throw new ApiException(HttpStatus.GONE, "OTP_EXPIRED", "This code can't be used any more. Ask for a new one.");
+        }
+        boolean hasPin = jdbc.sql("SELECT EXISTS (SELECT 1 FROM account WHERE phone_e164 = :phone AND pin_hash IS NOT NULL)")
+                .param("phone", c.phoneE164())
+                .query(Boolean.class)
+                .single();
+        if (!hasPin && newPin == null) {
+            throw new ApiException(HttpStatus.PRECONDITION_REQUIRED, "PIN_REQUIRED", "Choose a PIN to finish signing in.");
         }
         if (!otp.matches(code, challengeId.toString(), c.codeHash())) {
             jdbc.sql("UPDATE otp_challenge SET attempts = attempts + 1 WHERE id = :id").param("id", challengeId).update();
@@ -214,6 +231,18 @@ public class PatientAuthController {
                 .param("phone", c.phoneE164())
                 .query(Long.class)
                 .single();
+        if (newPin != null) {
+            // A new PIN signs out every other phone, as when it is changed in the app
+            jdbc.sql("""
+                    UPDATE account SET pin_hash = :hash, pin_set_at = now(), session_version = session_version + 1
+                     WHERE id = :id
+                    """)
+                    .param("hash", passwords.encode(newPin))
+                    .param("id", accountId)
+                    .update();
+            audit.record("PATIENT", "account:" + accountId, null, hasPin ? "PATIENT_PIN_RESET" : "PATIENT_PIN_SET",
+                    "account", String.valueOf(accountId), Map.of());
+        }
         return finishSignIn(accountId, c.phoneE164(), "code");
     }
 

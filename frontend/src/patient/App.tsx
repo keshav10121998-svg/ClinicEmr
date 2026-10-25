@@ -15,13 +15,12 @@ type Tab = 'visits' | 'documents' | 'sharing';
 
 export function App() {
   const { session } = useSession();
-  const [skippedPin, setSkippedPin] = useState(false);
   if (!session) return <SignInPage />;
-  // First sign-in with a clinic code (or after a forgotten PIN): choose a PIN for signing in at home
-  if (!session.pinSet && !skippedPin) {
+  // Code sign-ins choose a PIN on the way in; a phone signed in before that rule still has to set one first
+  if (!session.pinSet) {
     return (
       <div className="auth">
-        <PinForm changing={false} onDone={() => {}} onSkip={() => setSkippedPin(true)} />
+        <PinForm changing={false} onDone={() => {}} />
       </div>
     );
   }
