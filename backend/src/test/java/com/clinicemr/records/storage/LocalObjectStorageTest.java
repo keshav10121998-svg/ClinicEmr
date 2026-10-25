@@ -20,7 +20,7 @@ class LocalObjectStorageTest {
 
     private LocalObjectStorage storage() throws Exception {
         StorageProperties props = new StorageProperties("local", "proxy", null, null, null, null, null, false,
-                Duration.ofMinutes(5), 1024, dir.toString(), "http://localhost:18080");
+                Duration.ofMinutes(5), 1024, dir.toString(), "http://localhost:18080", null);
         return new LocalObjectStorage(props, new SecurityProperties("test-secret-test-secret-test-secret-1234", Duration.ofHours(1)));
     }
 

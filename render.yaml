@@ -1,0 +1,45 @@
+# Render blueprint: Dashboard → New → Blueprint → pick this repository.
+# Values marked "sync: false" are asked for once in the dashboard (database and storage details from Supabase).
+services:
+  - type: web
+    name: clinic-emr
+    runtime: docker
+    plan: free
+    region: singapore          # nearest Render region to India
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true    # random secret, created once by Render
+      - key: PUBLIC_BASE_URL   # this service's address, e.g. https://clinic-emr.onrender.com
+        sync: false
+      # Supabase → Connect → Session pooler (IPv4). JDBC form: jdbc:postgresql://<host>:5432/postgres?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USER           # postgres.<project-ref>
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_POOL_SIZE
+        value: "5"
+      # Supabase → Storage → S3 connection
+      - key: STORAGE_TYPE
+        value: s3
+      - key: STORAGE_ENDPOINT  # https://<project-ref>.storage.supabase.co/storage/v1/s3
+        sync: false
+      - key: STORAGE_REGION    # shown next to the endpoint, e.g. ap-south-1
+        sync: false
+      - key: STORAGE_BUCKET
+        value: clinic-emr-documents
+      - key: STORAGE_ACCESS_KEY
+        sync: false
+      - key: STORAGE_SECRET_KEY
+        sync: false
+      - key: STORAGE_PATH_STYLE
+        value: "true"
+      - key: STORAGE_UPLOAD_MODE
+        value: proxy
+      - key: STORAGE_DOWNLOAD_MODE
+        value: proxy

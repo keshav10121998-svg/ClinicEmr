@@ -5,6 +5,9 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/clinic_emr}
     username: ${DB_USER:clinic}
     password: ${DB_PASSWORD:clinic}
+    hikari:
+      # Hosted free databases (e.g. Supabase's pooler) allow only a few connections per client
+      maximum-pool-size: ${DB_POOL_SIZE:10}
   flyway:
     enabled: true
   jackson:
@@ -31,7 +34,10 @@ app:
     # direct: browsers PUT to pre-signed URLs (S3 only; the bucket must allow the front-end origin).
     upload-mode: ${STORAGE_UPLOAD_MODE:proxy}
     local-dir: ${STORAGE_LOCAL_DIR:target/dev-storage}
-    local-base-url: ${STORAGE_LOCAL_BASE_URL:http://localhost:18080}
+    # The app's public address, for download links the backend serves itself (local storage, or download-mode proxy)
+    local-base-url: ${PUBLIC_BASE_URL:${STORAGE_LOCAL_BASE_URL:http://localhost:18080}}
+    # presigned: links straight to the store. proxy: files are streamed through the backend (any S3-compatible store).
+    download-mode: ${STORAGE_DOWNLOAD_MODE:presigned}
     endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
     region: ${STORAGE_REGION:ap-mumbai-1}
     bucket: ${STORAGE_BUCKET:clinic-emr-documents}

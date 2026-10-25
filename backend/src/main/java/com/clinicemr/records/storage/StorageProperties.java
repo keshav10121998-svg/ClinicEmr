@@ -15,6 +15,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code uploadMode = proxy} (default) sends uploads through the backend, which checks each file's real type before
  * storing it and needs no CORS setup on the bucket. {@code direct} hands the browser a pre-signed PUT URL instead
  * (S3 only; the bucket must allow the front-end's origin).
+ * {@code downloadMode = proxy} serves downloads through this backend with signed links ({@code localBaseUrl} is then
+ * the app's public address) for stores whose pre-signed URLs aren't usable; the default uses the store's own.
  */
 @ConfigurationProperties(prefix = "app.storage")
 public record StorageProperties(
@@ -29,7 +31,8 @@ public record StorageProperties(
         Duration presignTtl,
         long maxFileBytes,
         String localDir,
-        String localBaseUrl) {
+        String localBaseUrl,
+        String downloadMode) {
 
     public StorageProperties {
         if (type == null || type.isBlank()) {
@@ -50,6 +53,11 @@ public record StorageProperties(
         if (localBaseUrl == null || localBaseUrl.isBlank()) {
             localBaseUrl = "http://localhost:18080";
         }
+    }
+
+    /** Downloads go through this backend's signed links instead of the store's own pre-signed URLs. */
+    public boolean proxyDownloads() {
+        return "proxy".equalsIgnoreCase(downloadMode) || "local".equalsIgnoreCase(type);
     }
 
     public boolean proxyUploads() {

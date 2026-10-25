@@ -1,0 +1,7 @@
+.git
+.idea
+.claude
+**/node_modules
+**/dist
+backend/target
+*.log

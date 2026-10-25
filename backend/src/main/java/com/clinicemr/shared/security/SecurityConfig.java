@@ -35,8 +35,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/clinics").permitAll()
-                        // Signed, expiring links checked by the controller (local dev storage only)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/storage/local").permitAll()
+                        // Signed, expiring download links, checked by the controller
+                        .requestMatchers(HttpMethod.GET, "/api/v1/storage/file").permitAll()
                         .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/**", "/actuator/**").authenticated()
                         // Everything else is the web app's own files and screens

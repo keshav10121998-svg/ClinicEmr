@@ -1,11 +1,9 @@
 package com.clinicemr.records.storage;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
 
+import com.clinicemr.shared.security.SecurityProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
@@ -17,11 +15,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Serves files for {@link LocalObjectStorage} through signed, expiring links (the local stand-in for pre-signed
- * URLs). Answers 404 whenever local storage isn't in use or the link is invalid or expired.
+ * Serves files through the signed, expiring links from {@link SignedFileLinks} (the backend's stand-in for
+ * pre-signed URLs). The permission check happened when the link was issued; here only the signature is checked.
+ * Answers 404 when downloads don't go through the backend, or the link is invalid or expired.
  */
 @RestController
-public class LocalFileController {
+public class FileLinkController {
 
     private static final Map<String, MediaType> TYPES = Map.of(
             "pdf", MediaType.APPLICATION_PDF,
@@ -30,29 +29,32 @@ public class LocalFileController {
             "webp", MediaType.parseMediaType("image/webp"),
             "heic", MediaType.parseMediaType("image/heic"));
 
-    private final ObjectProvider<LocalObjectStorage> storage;
+    private final ObjectProvider<ObjectStorage> storage;
+    private final StorageProperties props;
+    private final SignedFileLinks links;
 
-    public LocalFileController(ObjectProvider<LocalObjectStorage> storage) {
+    public FileLinkController(ObjectProvider<ObjectStorage> storage, StorageProperties props, SecurityProperties security) {
         this.storage = storage;
+        this.props = props;
+        this.links = new SignedFileLinks(props, security);
     }
 
-    @GetMapping("/api/v1/storage/local")
-    public ResponseEntity<byte[]> download(@RequestParam String key, @RequestParam long exp, @RequestParam String sig)
-            throws IOException {
-        LocalObjectStorage local = storage.getIfAvailable();
-        if (local == null) {
+    @GetMapping(SignedFileLinks.PATH)
+    public ResponseEntity<byte[]> download(@RequestParam String key, @RequestParam long exp, @RequestParam String sig) {
+        ObjectStorage store = storage.getIfAvailable();
+        if (store == null || !props.proxyDownloads() || !links.valid(key, exp, sig)) {
             return ResponseEntity.notFound().build();
         }
-        Path file;
+        byte[] bytes;
         try {
-            file = local.verifiedFile(key, exp, sig).orElse(null);
+            bytes = store.read(key).orElse(null);
         } catch (IllegalArgumentException e) {
-            file = null;
+            bytes = null;
         }
-        if (file == null) {
+        if (bytes == null) {
             return ResponseEntity.notFound().build();
         }
-        String name = file.getFileName().toString();
+        String name = key.substring(key.lastIndexOf('/') + 1);
         MediaType type = TYPES.getOrDefault(name.substring(name.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT),
                 MediaType.APPLICATION_OCTET_STREAM);
         return ResponseEntity.ok()
@@ -60,6 +62,6 @@ public class LocalFileController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename(name).build().toString())
                 .header("X-Content-Type-Options", "nosniff")
                 .cacheControl(CacheControl.noStore())
-                .body(Files.readAllBytes(file));
+                .body(bytes);
     }
 }

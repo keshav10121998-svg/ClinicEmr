@@ -15,6 +15,9 @@ public interface ObjectStorage {
 
     void put(String key, String contentType, byte[] bytes);
 
+    /** The object's bytes, if it exists. Used to serve downloads through the backend. */
+    Optional<byte[]> read(String key);
+
     /** Size in bytes if the object exists. */
     Optional<Long> sizeOf(String key);
 

@@ -216,6 +216,12 @@ names need an embedded font (not done yet).
 Next up: shared allergies and medicines in the clinic summary,
 a real SMS provider through the outbox with retries, virus scanning of uploads, and deployment to Oracle Cloud.
 
+## Deploy for free
+
+Step by step in [DEPLOY.md](DEPLOY.md): the app on Render's free plan (from the root `Dockerfile` and `render.yaml`),
+the database and file storage on Supabase (Mumbai), and cron-job.org to keep it awake. Files are then served through
+the backend (`STORAGE_DOWNLOAD_MODE=proxy`), and the database pool stays small (`DB_POOL_SIZE=5`).
+
 ## Run locally
 
 Requirements: Java 21, Node 18+. Docker Desktop is optional (PostgreSQL and MinIO).

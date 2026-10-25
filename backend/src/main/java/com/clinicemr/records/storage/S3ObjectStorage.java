@@ -3,6 +3,7 @@ package com.clinicemr.records.storage;
 import java.net.URL;
 import java.util.Optional;
 
+import com.clinicemr.shared.security.SecurityProperties;
 import jakarta.annotation.PreDestroy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -29,9 +30,11 @@ public class S3ObjectStorage implements ObjectStorage {
     private final StorageProperties props;
     private final S3Client client;
     private final S3Presigner presigner;
+    private final SignedFileLinks links;
 
-    public S3ObjectStorage(StorageProperties props) {
+    public S3ObjectStorage(StorageProperties props, SecurityProperties security) {
         this.props = props;
+        this.links = new SignedFileLinks(props, security);
         var credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(props.accessKey(), props.secretKey()));
         var s3Config = S3Configuration.builder().pathStyleAccessEnabled(props.pathStyle()).build();
         Region region = Region.of(props.region());
@@ -65,6 +68,9 @@ public class S3ObjectStorage implements ObjectStorage {
 
     @Override
     public URL presignDownload(String key) {
+        if (props.proxyDownloads()) {
+            return links.create(key);
+        }
         GetObjectRequest get = GetObjectRequest.builder().bucket(props.bucket()).key(key).build();
         return presigner.presignGetObject(b -> b.signatureDuration(props.presignTtl()).getObjectRequest(get)).url();
     }
@@ -73,6 +79,21 @@ public class S3ObjectStorage implements ObjectStorage {
     public void put(String key, String contentType, byte[] bytes) {
         client.putObject(PutObjectRequest.builder().bucket(props.bucket()).key(key).contentType(contentType).build(),
                 RequestBody.fromBytes(bytes));
+    }
+
+    @Override
+    public Optional<byte[]> read(String key) {
+        try {
+            return Optional.of(client.getObjectAsBytes(GetObjectRequest.builder().bucket(props.bucket()).key(key).build())
+                    .asByteArray());
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
     }
 
     @Override
