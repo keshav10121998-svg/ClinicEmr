@@ -306,10 +306,12 @@ public class EncounterService {
                                    FROM prescription_item pi JOIN prescription p ON p.id = pi.prescription_id
                                   WHERE p.encounter_id = e.id), '') AS medicines,
                        (SELECT count(*) FROM prescription_item pi JOIN prescription p ON p.id = pi.prescription_id
-                         WHERE p.encounter_id = e.id)::int AS prescription_lines
+                         WHERE p.encounter_id = e.id)::int AS prescription_lines,
+                       vp.paid, vp.balance, vp.due_date
                   FROM encounter e
                   JOIN staff_user s ON s.id = e.doctor_id
                   LEFT JOIN encounter_note n ON n.encounter_id = e.id
+                  LEFT JOIN visit_payment vp ON vp.encounter_id = e.id
                  WHERE e.profile_id = :profileId AND e.clinic_id = :clinicId AND e.status = 'SIGNED'
                  ORDER BY e.started_at DESC
                  LIMIT 100

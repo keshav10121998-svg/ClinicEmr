@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { AttachedFiles } from '../components/AttachedFiles';
+import { VisitPayment } from '../components/VisitPayment';
 import { useIsPhone } from '../useIsPhone';
 import { appendSpoken, MicButton, useDictation, VoiceTextArea } from '../components/Dictation';
 import { addDays, date, dateTime, todayIst } from '../format';
@@ -374,6 +375,7 @@ export function VisitPage() {
             </fieldset>
 
             <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
+            <VisitPayment encounterId={encounter.id} />
 
             {amending ? (
               <div className="action-bar" style={{ display: 'grid', gap: 8 }}>
@@ -556,6 +558,7 @@ function SignedView({ encounter, canAmend, onAmend }: { encounter: Encounter; ca
         {c.privateNote && <><dt>Private note</dt><dd className="muted">{c.privateNote}</dd></>}
       </dl>
       <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
+      <VisitPayment encounterId={encounter.id} />
     </section>
   );
 }

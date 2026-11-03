@@ -172,3 +172,40 @@ export function VoiceTextArea({ id, label, value, onChange, placeholder, rows = 
     </div>
   );
 }
+
+const SMALL: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11,
+  twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+const SCALE: Record<string, number> = { hundred: 100, thousand: 1000, lakh: 100000, lakhs: 100000, lac: 100000 };
+
+/**
+ * A spoken amount in rupees as a whole number: "300", "₹1,500", "Rs 250", "three hundred fifty",
+ * "one thousand two hundred", "2 lakh". Undefined when no amount is heard.
+ */
+export function spokenAmount(spoken: string): number | undefined {
+  const text = spoken.toLowerCase().replace(/,/g, '').replace(/₹|rs\.?|rupees?|only/g, ' ');
+  // Digits, possibly followed by a scale word ("2 lakh", "5 thousand")
+  const digits = text.match(/(\d+(?:\.\d+)?)\s*(hundred|thousand|lakhs?|lac)?/);
+  if (digits) {
+    return Math.round(Number(digits[1]) * (digits[2] ? SCALE[digits[2]] : 1));
+  }
+  let total = 0;
+  let current = 0;
+  let heard = false;
+  for (const word of text.split(/[\s-]+/)) {
+    if (word in SMALL) {
+      current += SMALL[word];
+      heard = true;
+    } else if (word === 'hundred') {
+      current = (current || 1) * 100;
+      heard = true;
+    } else if (word in SCALE) {
+      total += (current || 1) * SCALE[word];
+      current = 0;
+      heard = true;
+    }
+  }
+  return heard ? total + current : undefined;
+}

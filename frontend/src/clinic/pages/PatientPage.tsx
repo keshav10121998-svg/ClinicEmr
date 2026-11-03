@@ -9,6 +9,9 @@ import { SharedHistoryPanel } from '../components/SharedHistoryPanel';
 import { useIsPhone } from '../useIsPhone';
 import { AttachedFiles } from '../components/AttachedFiles';
 import { AppSignInCode } from '../components/AppSignInCode';
+import { VisitPaymentQuick } from '../components/VisitPayment';
+import { PatientPayments } from '../components/PatientPayments';
+import { PAYMENTS_CHANGED } from '../payments';
 
 export function PatientPage() {
   const { patientId } = useParams();
@@ -47,6 +50,14 @@ export function PatientPage() {
     return () => { cancelled = true; };
   }, [patientId, clinical]);
 
+  // Payments recorded from the list (or anywhere) refresh each visit's payment
+  useEffect(() => {
+    if (!clinical) return;
+    const reload = () => api.get<EncounterListItem[]>(`/clinic/patients/${patientId}/encounters`).then(setVisits).catch(() => {});
+    window.addEventListener(PAYMENTS_CHANGED, reload);
+    return () => window.removeEventListener(PAYMENTS_CHANGED, reload);
+  }, [patientId, clinical]);
+
   async function startVisit() {
     setError(undefined);
     try {
@@ -73,22 +84,25 @@ export function PatientPage() {
       {visits.length === 0 ? <p className="muted">No visits yet.</p> : phone ? (
         <div className="visit-cards">
           {visits.map((v) => (
-            <button key={v.id} type="button" className="visit-card" onClick={() => navigate(`/visits/${v.id}`)}>
-              <span className="between">
-                <b>{dateTime(v.startedAt)}</b>
-                {!v.signedAt ? <span className="chip">Draft</span> : v.currentVersion > 1 ? <span className="chip">Corrected</span> : null}
-              </span>
-              <span className="muted small">{v.doctorName}</span>
-              {v.diagnoses && <span>{v.diagnoses}</span>}
-              {v.treatmentGiven && <span className="small"><span className="muted">Treatment:</span> {v.treatmentGiven}</span>}
-              {v.medicines && <span className="small"><span className="muted">Medicines:</span> {v.medicines}</span>}
-            </button>
+            <div key={v.id} className="visit-card">
+              <button type="button" className="visit-open" onClick={() => navigate(`/visits/${v.id}`)}>
+                <span className="between">
+                  <b>{dateTime(v.startedAt)}</b>
+                  {!v.signedAt ? <span className="chip">Draft</span> : v.currentVersion > 1 ? <span className="chip">Corrected</span> : null}
+                </span>
+                <span className="muted small">{v.doctorName}</span>
+                {v.diagnoses && <span>{v.diagnoses}</span>}
+                {v.treatmentGiven && <span className="small"><span className="muted">Treatment:</span> {v.treatmentGiven}</span>}
+                {v.medicines && <span className="small"><span className="muted">Medicines:</span> {v.medicines}</span>}
+              </button>
+              <VisitPaymentQuick visit={v} />
+            </div>
           ))}
         </div>
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Visit time</th><th>Doctor</th><th>Diagnosis</th><th>Treatment</th><th>Medicines</th><th /></tr></thead>
+            <thead><tr><th>Visit time</th><th>Doctor</th><th>Diagnosis</th><th>Treatment</th><th>Medicines</th><th>Payment</th><th /></tr></thead>
             <tbody>
               {visits.map((v) => (
                 <tr key={v.id} className="clickable" onClick={() => navigate(`/visits/${v.id}`)}>
@@ -97,6 +111,7 @@ export function PatientPage() {
                   <td>{v.diagnoses || <span className="muted">—</span>}{v.currentVersion > 1 && <span className="chip" style={{ marginLeft: 6 }}>amended</span>}</td>
                   <td className="small">{v.treatmentGiven || <span className="muted">—</span>}</td>
                   <td className="small">{v.medicines || <span className="muted">—</span>}</td>
+                  <td onClick={(e) => e.stopPropagation()} style={{ cursor: 'default', minWidth: 170 }}><VisitPaymentQuick visit={v} /></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <button className="link" onClick={() => openPdf(`/clinic/encounters/${v.id}/prescription-link`)}>Print</button>
                   </td>
@@ -129,6 +144,7 @@ export function PatientPage() {
       </div>
       {error && <div className="alert error">{error}</div>}
       <PatientHeader patient={patient} allergies={summary?.allergies} />
+      <PatientPayments patientId={patientId!} />
       <AppSignInCode patientId={patientId!} />
 
       {!clinical && (

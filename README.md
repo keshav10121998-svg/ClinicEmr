@@ -13,6 +13,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Clinic and staff | `GET /api/v1/clinic`, `GET/POST /api/v1/clinic/staff` |
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
+| Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
 | Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
@@ -44,6 +45,15 @@ layout. Clinic screens so far:
 - **Mobile numbers** everywhere (patients, staff, clinic, patient sign-in) are exactly 10 digits starting with 6–9.
   The boxes take digits only, stop at 10, clean up pasted `+91 …` numbers, and say how many digits are missing; the
   server checks the same rule.
+- **Payments:** each visit has Paid + Balance = Total (whole rupees). A balance needs a due date (in 3 / 7 / 15 / 30 days
+  or a date). From that day the visit's doctor sees it under **Money to collect** at the top of Overview, with a red
+  count on the Overview tab; admins and front desk see the whole clinic's. **Balance received** moves it into Paid. A
+  patient's page shows what they still owe. Any staff member can record payments; nothing about money is printed or
+  shown in the patient app. On a patient's visit list each visit shows **Paid ₹X** or **₹X due · date** with a box for
+  the amount received now (never more than what's due; the rest stays due) and **Full ₹X**, or **+ Add payment**. Paid and Balance also
+  have a mic: say "three hundred fifty" or "₹1,200". A patient's page has a **Payments** card: Total / Paid / Balance across
+  visits, an amount box that can't go above the total balance (taken off the visits latest first), **Fully paid**,
+  and **Payment history**: every amount received, when, for which visit and by whom (a split payment is shown once).
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
   time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished

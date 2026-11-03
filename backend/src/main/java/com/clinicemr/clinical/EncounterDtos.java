@@ -56,6 +56,7 @@ public final class EncounterDtos {
     /** One row of a patient's visit history: when, who, what was found, what treatment and which medicines. */
     public record EncounterListItem(UUID id, String visitType, Instant startedAt, Instant signedAt, String doctorName,
                                     int currentVersion, String diagnoses, String treatmentGiven, String medicines,
-                                    int prescriptionLines) {
+                                    int prescriptionLines, Integer paid, Integer balance, java.time.LocalDate dueDate) {
+        // paid, balance and dueDate are empty until a payment is recorded for the visit
     }
 }

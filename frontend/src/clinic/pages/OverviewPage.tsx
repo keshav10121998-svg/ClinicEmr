@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { VisitCount, VisitorList, VisitRange } from '../types';
 import { ageSex } from '../format';
+import { useSession } from '../session';
+import { dueLabel, onlyMine, paymentsChanged, rupees, useDuePayments } from '../payments';
 
 const LABELS: Record<VisitRange, string> = {
   TODAY: 'Today', YESTERDAY: 'Yesterday', LAST_7_DAYS: 'Last 7 days', THIS_YEAR: 'This year', ALL: 'All time',
@@ -38,6 +40,7 @@ export function OverviewPage() {
   return (
     <>
       <h1>Overview</h1>
+      <MoneyToCollect />
       {error && <div className="alert error">{error}</div>}
 
       <div className="stat-tiles" role="tablist" aria-label="Period">
@@ -101,4 +104,54 @@ function initials(name: string) {
 
 function visitsLabel(n: number) {
   return n === 0 ? 'First visit, not finished yet' : `${n} ${n === 1 ? 'visit' : 'visits'} in total`;
+}
+
+/**
+ * The due-date reminder: balances due today or earlier. Doctors see their own patients; admins and front desk see
+ * the clinic's. Tap a name to open the patient, or mark the balance received here.
+ */
+function MoneyToCollect() {
+  const navigate = useNavigate();
+  const { has } = useSession();
+  const { dues, reload } = useDuePayments(onlyMine(has));
+  const [error, setError] = useState<string>();
+
+  if (!dues || dues.length === 0) return null;
+  const total = dues.reduce((s, d) => s + d.balance, 0);
+
+  async function received(encounterId: string) {
+    setError(undefined);
+    try {
+      await api.post(`/clinic/encounters/${encounterId}/payment/settle`);
+      paymentsChanged();
+      reload();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not update the payment.');
+    }
+  }
+
+  return (
+    <div className="card money-due">
+      <div className="between">
+        <h2>Money to collect</h2>
+        <b>{rupees(total)}</b>
+      </div>
+      {error && <div className="alert error">{error}</div>}
+      <div className="patient-list">
+        {dues.map((d) => (
+          <div key={d.encounterId} className="due-row">
+            <button type="button" className="link due-name" onClick={() => navigate(`/patients/${d.patientId}`)}>{d.name}</button>
+            <span className="due-amount">{rupees(d.balance)}</span>
+            <span className={`small ${d.overdueDays > 0 ? 'late' : 'muted'}`}>
+              {dueLabel(d.overdueDays)} · visit {visitTime(d.visitAt, true)} · {d.doctorName}
+            </span>
+            <span className="due-actions">
+              {d.phone && <a className="small" href={`tel:+91${d.phone}`}>Call {d.phone}</a>}
+              <button type="button" className="small" onClick={() => received(d.encounterId)}>Received</button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

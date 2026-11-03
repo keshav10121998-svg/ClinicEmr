@@ -131,6 +131,10 @@ export interface EncounterListItem {
   treatmentGiven?: string;
   medicines: string;
   prescriptionLines: number;
+  /** Empty until a payment is recorded for the visit */
+  paid?: number;
+  balance?: number;
+  dueDate?: string;
 }
 
 export interface AllergyItem {
@@ -317,4 +321,57 @@ export interface VisitorList {
   visits: number;
   truncated: boolean;
   items: Visitor[];
+}
+
+/** Total = paid + balance, in whole rupees. A balance has a due date. */
+export interface Payment {
+  encounterId: string;
+  paid: number;
+  balance: number;
+  total: number;
+  dueDate?: string;
+  settledAt?: string;
+  updatedAt: string;
+}
+
+export interface PaymentDue {
+  encounterId: string;
+  patientId: string;
+  name: string;
+  mrn?: string;
+  gender: Patient['gender'];
+  ageYears?: number;
+  phone?: string;
+  balance: number;
+  paid: number;
+  dueDate: string;
+  /** 0 on the due date, positive after it, negative before it */
+  overdueDays: number;
+  visitAt: string;
+  doctorName: string;
+}
+
+export interface PaymentHistoryEntry {
+  id: number;
+  receivedAt: string;
+  amount: number;
+  kind: 'AT_VISIT' | 'BALANCE' | 'CORRECTION';
+  /** Shared by the parts of one patient-level payment split across visits */
+  batchId?: string;
+  encounterId: string;
+  visitAt: string;
+  recordedBy: string;
+}
+
+export interface PaymentHistory {
+  total: number;
+  paid: number;
+  balance: number;
+  entries: PaymentHistoryEntry[];
+}
+
+export interface PatientPaymentReceived {
+  amount: number;
+  remainingBalance: number;
+  appliedTo: { encounterId: string; visitAt: string; amount: number; balanceLeft: number }[];
 }

@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ChartIcon, ExitIcon, PeopleIcon, StaffIcon } from './components/Icons';
+import { onlyMine, useDuePayments } from './payments';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterClinicPage } from './pages/RegisterClinicPage';
@@ -11,7 +12,7 @@ import { StaffPage } from './pages/StaffPage';
 import { OverviewPage } from './pages/OverviewPage';
 
 export function App() {
-  const { session, clinic, has } = useSession();
+  const { session, clinic } = useSession();
 
   if (!session) {
     return (
@@ -24,10 +25,18 @@ export function App() {
   if (!clinic) {
     return <ChooseClinicPage />;
   }
+  return <ClinicShell />;
+}
+
+/** The signed-in clinic screens. The Overview tab shows how many balances are due (the payment reminder). */
+function ClinicShell() {
+  const { has } = useSession();
+  const { dues } = useDuePayments(onlyMine(has));
+  const due = dues?.length ?? 0;
   return (
     <>
-      <TopBar />
-      <BottomTabs />
+      <TopBar due={due} />
+      <BottomTabs due={due} />
       <main className="page">
         <Routes>
           <Route path="/" element={<Navigate to="/patients" replace />} />
@@ -43,7 +52,7 @@ export function App() {
   );
 }
 
-function TopBar() {
+function TopBar({ due }: { due: number }) {
   const { session, clinic, logout, chooseClinic, has } = useSession();
   const navigate = useNavigate();
   return (
@@ -51,7 +60,7 @@ function TopBar() {
       <a className="brand" href="/patients">ClinicEMR</a>
       <nav>
         <NavLink to="/patients">Patients</NavLink>
-        <NavLink to="/overview">Overview</NavLink>
+        <NavLink to="/overview">Overview{due > 0 && <DueCount n={due} />}</NavLink>
         {has('ADMIN') && <NavLink to="/staff">Staff</NavLink>}
       </nav>
       <span className="spacer" />
@@ -76,7 +85,7 @@ function TopBar() {
 }
 
 /** Phone navigation along the bottom edge, within thumb reach. Hidden on wider screens and during a visit. */
-function BottomTabs() {
+function BottomTabs({ due }: { due: number }) {
   const { logout, has } = useSession();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -84,11 +93,15 @@ function BottomTabs() {
   return (
     <nav className="bottom-tabs" aria-label="Main">
       <NavLink to="/patients"><PeopleIcon />Patients</NavLink>
-      <NavLink to="/overview"><ChartIcon />Overview</NavLink>
+      <NavLink to="/overview" className="tab-with-count"><ChartIcon />Overview{due > 0 && <DueCount n={due} />}</NavLink>
       {has('ADMIN') && <NavLink to="/staff"><StaffIcon />Staff</NavLink>}
       <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }}><ExitIcon />Sign out</button>
     </nav>
   );
+}
+
+function DueCount({ n }: { n: number }) {
+  return <span className="due-count" aria-label={`${n} payments to collect`}>{n}</span>;
 }
 
 export function roleLabel(r: string) {

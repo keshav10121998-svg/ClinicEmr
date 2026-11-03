@@ -313,3 +313,47 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .big-code { font: 700 38px/1 var(--mono); letter-spacing: .12em; color: var(--accent); padding: 6px 0; }
 
 .field-hint { color: var(--warn); font-weight: 500; }
+
+/* ----- payments */
+.payment { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.payment-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
+.payment-op { padding-bottom: 10px; color: var(--muted); font-weight: 700; }
+.payment-total { font-size: 20px; font-weight: 700; color: var(--ink); padding: 6px 0; font-variant-numeric: tabular-nums; }
+.payment-due { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.money-due { border-color: var(--warn); }
+.due-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.due-row .due-name { justify-self: start; font-weight: 600; font-size: 15px; padding: 0; }
+.due-row .due-amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+.due-row .late { color: var(--danger); font-weight: 600; }
+.due-row .due-actions { grid-column: 2; grid-row: 2; display: flex; gap: 10px; align-items: center; justify-self: end; }
+.due-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px;
+  background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+}
+.tab-with-count { position: relative; }
+.bottom-tabs .tab-with-count .due-count { position: absolute; top: 4px; left: calc(50% + 6px); margin: 0; }
+@media (max-width: 759px) {
+  .payment-row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .payment-row > :nth-child(4) { display: none; }
+  .payment-row > :nth-child(5) { grid-column: 1 / -1; display: flex; gap: 8px; align-items: baseline; }
+  .due-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .due-row .due-actions { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
+}
+.visit-card .visit-open { display: grid; gap: 3px; text-align: left; white-space: normal; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.pay-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.visit-card .pay-quick { padding-top: 8px; margin-top: 4px; border-top: 1px dashed var(--line); }
+.pay-quick .pay-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pay-quick .payment { border-top: 0; padding-top: 0; flex-basis: 100%; }
+.chip.due { background: var(--warn-bg); border-color: transparent; color: var(--warn); font-weight: 600; }
+.pay-quick .pay-actions { align-items: center; }
+.amount-box { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding-left: 8px; }
+.amount-box input { border: 0; width: 6.5em; padding-left: 0; background: transparent; }
+.amount-box:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.amount-box input:focus { outline: none; }
+.patient-payments .pay-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.patient-payments .pay-totals > div { display: grid; gap: 2px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.patient-payments .pay-totals b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.patient-payments .pay-totals .owed { background: var(--warn-bg); border-color: transparent; color: var(--warn); }
+.pay-history { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.pay-history-item { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.pay-history-item .negative { color: var(--danger); }
