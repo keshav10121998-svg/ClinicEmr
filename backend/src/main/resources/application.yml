@@ -30,7 +30,8 @@ app:
   security:
     # HMAC key for staff JWTs. Must be at least 32 bytes. Override in every non-local environment.
     jwt-secret: ${JWT_SECRET:local-dev-only-secret-change-me-0123456789}
-    token-ttl: PT12H
+    # Staff stay signed in on their phone; the app renews this each time it opens
+    token-ttl: ${STAFF_SESSION_TTL:P30D}
   storage:
     # s3: any S3-compatible store (MinIO from docker-compose, or Oracle Object Storage, see README).
     # local: files on this machine's disk, for development only (the dev server uses this by default).

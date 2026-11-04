@@ -43,6 +43,8 @@ layout. Clinic screens so far:
 
 - **Sign in / set up your clinic** with email or 10-digit mobile number and password, and a clinic switcher for staff
   who work at more than one. A staff mobile number belongs to one account; admins add or change it on the Staff page.
+  Staff stay signed in when the app or browser is closed, until they tap **Sign out**: the sign-in lasts 30 days
+  (`STAFF_SESSION_TTL`) and renews each time the app opens. Suspended staff are signed out on their next request.
 - **Mobile numbers** everywhere (patients, staff, clinic, patient sign-in) are exactly 10 digits starting with 6–9.
   The boxes take digits only, stop at 10, clean up pasted `+91 …` numbers, and say how many digits are missing; the
   server checks the same rule.

@@ -342,12 +342,15 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .visit-card .visit-open { display: grid; gap: 3px; text-align: left; white-space: normal; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
 .pay-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .visit-card .pay-quick { padding-top: 8px; margin-top: 4px; border-top: 1px dashed var(--line); }
-.pay-quick .pay-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pay-actions { display: flex; gap: 6px; flex-wrap: nowrap; align-items: stretch; flex-basis: 100%; max-width: 460px; }
+.pay-actions button { flex: none; white-space: nowrap; min-height: 44px; padding: 0 14px; font-size: 14px; }
 .pay-quick .payment { border-top: 0; padding-top: 0; flex-basis: 100%; }
 .chip.due { background: var(--warn-bg); border-color: transparent; color: var(--warn); font-weight: 600; }
-.pay-quick .pay-actions { align-items: center; }
 .amount-box { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding-left: 8px; }
-.amount-box input { border: 0; width: 6.5em; padding-left: 0; background: transparent; }
+.pay-actions .amount-box { flex: 1 1 auto; min-width: 0; }
+.amount-box > span { color: var(--muted); font-weight: 600; }
+.amount-box input { border: 0; width: 6.5em; min-height: 42px; padding-left: 0; background: transparent; }
+.pay-actions .amount-box input { width: 100%; min-width: 3em; }
 .amount-box:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .amount-box input:focus { outline: none; }
 .patient-payments .pay-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -360,7 +363,8 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .payment-requests { border-color: var(--accent); }
 .request-row { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .request-row .due-name { font-weight: 600; font-size: 15px; padding: 0; }
-.pay-comment { max-width: 340px; }
+
+.pay-comment { width: 100%; max-width: 460px; min-height: 44px; }
 .pay-quick .pay-comment { flex-basis: 100%; }
 .pay-history-comment { color: var(--ink); font-style: italic; }
 

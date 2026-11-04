@@ -11,7 +11,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -81,6 +83,25 @@ public class StaffAuthController {
         }
 
         StaffRow s = staff.get();
+        TokenService.IssuedToken token = tokens.issueStaffToken(s.id(), s.email(), s.name());
+        return new LoginResponse(token.value(), token.expiresAt(), s.id(), s.name(), memberships(s.id()));
+    }
+
+    /**
+     * Opening the app swaps a still-valid sign-in for a fresh one (with current clinics and roles), so staff who use
+     * it at least once a month stay signed in until they tap Sign out. Suspended staff get 401 and are signed out.
+     */
+    @PostMapping("/renew")
+    public LoginResponse renew(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null || !"staff".equals(jwt.getClaimAsString("typ"))) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "NOT_SIGNED_IN", "Sign in again.");
+        }
+        StaffRow s = jdbc.sql("SELECT id, email, name, password_hash, status FROM staff_user WHERE id = :id")
+                .param("id", Long.parseLong(jwt.getSubject()))
+                .query(StaffRow.class)
+                .optional()
+                .filter(r -> "ACTIVE".equals(r.status()))
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "NOT_SIGNED_IN", "Sign in again."));
         TokenService.IssuedToken token = tokens.issueStaffToken(s.id(), s.email(), s.name());
         return new LoginResponse(token.value(), token.expiresAt(), s.id(), s.name(), memberships(s.id()));
     }
