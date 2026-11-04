@@ -1,17 +1,26 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { api, ApiError } from '../api';
 import type { EncounterListItem, Payment } from '../types';
 import { addDays, date, todayIst } from '../format';
 import { paymentsChanged, rupees } from '../payments';
 import { MicButton, spokenAmount, useDictation } from './Dictation';
+import { DateField } from '../../shared/DateField';
 
 const DUE_DAYS = [3, 7, 15, 30];
+
+/** Lets the visit screen save the payment together with Finish visit. */
+export interface VisitPaymentHandle {
+  /** Saves what was typed, if anything changed. False when it couldn't (the card shows why). */
+  saveIfChanged(): Promise<boolean>;
+}
 
 /**
  * What the patient paid for this visit: Paid + Balance = Total. A balance gets a due date ("due in N days"); from
  * that day the doctor sees it in Money to collect on the Overview. Any clinic staff member can fill it in.
+ * With {@code savedWithFinish} (a visit still open) there is no Save button: Finish visit saves it.
  */
-export function VisitPayment({ encounterId }: { encounterId: string }) {
+export const VisitPayment = forwardRef<VisitPaymentHandle, { encounterId: string; savedWithFinish?: boolean }>(
+function VisitPayment({ encounterId, savedWithFinish = false }, ref) {
   const [saved, setSaved] = useState<Payment | null>();
   const [paid, setPaid] = useState('');
   const [balance, setBalance] = useState('');
@@ -39,10 +48,12 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
   const changed = !saved ? paid !== '' || balance !== ''
     : paidN !== saved.paid || balanceN !== saved.balance || (balanceN > 0 && dueDate !== (saved.dueDate ?? ''));
 
-  async function save() {
+  useImperativeHandle(ref, () => ({ saveIfChanged: () => (changed ? save() : Promise.resolve(true)) }));
+
+  async function save(): Promise<boolean> {
     if (balanceN > 0 && !dueDate) {
       setError('Choose when the balance is due.');
-      return;
+      return false;
     }
     setBusy(true);
     setError(undefined);
@@ -52,8 +63,10 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
       setComment('');
       setNote('Saved');
       paymentsChanged();
+      return true;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not save the payment.');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -113,8 +126,8 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
                 {d} days
               </button>
             ))}
-            <input type="date" aria-label="Due date" style={{ width: 'auto' }} min={todayIst()} value={dueDate}
-                   onChange={(e) => { setDueDate(e.target.value); setNote(undefined); }} />
+            <DateField label="Balance due date" placeholder="Or pick a date" min={todayIst()} value={dueDate}
+                       onChange={(v) => { setDueDate(v); setNote(undefined); }} />
           </div>
           {dueDate && <span className="small muted">The doctor is reminded on {date(dueDate)}.</span>}
         </div>
@@ -125,12 +138,13 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
           <input value={comment} maxLength={300} placeholder="e.g. Paid by UPI" onChange={(e) => setComment(e.target.value)} />
         </label>
       )}
-      {changed && (
+      {changed && !savedWithFinish && (
         <button type="button" className="primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save payment'}</button>
       )}
+      {changed && savedWithFinish && <span className="small muted">Saved when you tap Finish visit.</span>}
     </div>
   );
-}
+});
 
 
 /** A rupee amount box with a mic: say "three hundred" or "₹150" and the number is filled in. */

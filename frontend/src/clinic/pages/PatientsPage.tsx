@@ -5,6 +5,7 @@ import type { DuplicateCandidate, Patient } from '../types';
 import { ageSex, date } from '../format';
 import { AccessRequestFlow } from '../components/AccessRequestFlow';
 import { PhoneInput, toMobileDigits } from '../../shared/PhoneInput';
+import { DateField } from '../../shared/DateField';
 
 interface RecentPatient {
   publicId: string;
@@ -180,7 +181,8 @@ function RegisterPatient({ initialPhone, initialName, onDone }:
       {more ? (
         <div className="fields">
           <label className="field">Date of birth (instead of age)
-            <input id="regDob" type="date" value={f.dob} onChange={set('dob')} max={new Date().toISOString().slice(0, 10)} />
+            <DateField id="regDob" value={f.dob} onChange={(v) => setF({ ...f, dob: v })} max={new Date().toISOString().slice(0, 10)}
+                       placeholder="Day Month Year" clearable style={{ width: '100%' }} />
           </label>
           <label className="field">ABHA number
             <input id="regAbha" value={f.abhaNumber} onChange={set('abhaNumber')} placeholder="14 digits" />

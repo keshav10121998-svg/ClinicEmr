@@ -8,10 +8,11 @@ import type {
 } from '../types';
 import { LastVisitCard, PatientHeader, SummaryPanel } from '../components/PatientPanels';
 import { AttachedFiles } from '../components/AttachedFiles';
-import { VisitPayment } from '../components/VisitPayment';
+import { VisitPayment, type VisitPaymentHandle } from '../components/VisitPayment';
 import { useIsPhone } from '../useIsPhone';
 import { appendSpoken, MicButton, useDictation, VoiceTextArea } from '../components/Dictation';
 import { addDays, date, dateTime, todayIst } from '../format';
+import { DateField } from '../../shared/DateField';
 
 type SaveState = 'saved' | 'saving' | 'unsaved' | 'conflict' | 'error';
 
@@ -47,6 +48,7 @@ export function VisitPage() {
   const dirtyRef = useRef(false);
   const savingRef = useRef<Promise<void> | null>(null);
   const timerRef = useRef<number>();
+  const paymentRef = useRef<VisitPaymentHandle>(null);
 
   const isAuthor = !!encounter && encounter.doctor.staffId === session?.staffId;
   const editingDraft = encounter?.status === 'DRAFT' && (isAuthor || has('NURSE'));
@@ -165,6 +167,11 @@ export function VisitPage() {
     setError(undefined);
     await flush();
     if (dirtyRef.current) return;
+    // The payment typed on this screen is saved with the visit; if it can't be, show why and don't finish yet
+    if (paymentRef.current && !(await paymentRef.current.saveIfChanged())) {
+      requestAnimationFrame(() => document.querySelector('.payment')?.scrollIntoView({ block: 'center' }));
+      return;
+    }
     try {
       const res = await api.post<Encounter>(`/clinic/encounters/${visitId}/sign`);
       setEncounter(res);
@@ -337,8 +344,8 @@ export function VisitPage() {
                       {d === 30 ? '1 month' : `${d} days`}
                     </button>
                   ))}
-                  <input id="followUpDate" type="date" aria-label="Next visit date" style={{ width: 'auto' }} value={content.followUp?.dueDate ?? ''}
-                         onChange={(e) => update((c) => ({ ...c, followUp: e.target.value ? { ...c.followUp, dueDate: e.target.value } : undefined }))} />
+                  <DateField id="followUpDate" label="Next visit date" placeholder="Pick a date" min={todayIst()} value={content.followUp?.dueDate ?? ''}
+                             onChange={(v) => update((c) => ({ ...c, followUp: v ? { ...c.followUp, dueDate: v } : undefined }))} />
                   {content.followUp && <button type="button" className="link" onClick={() => update((c) => ({ ...c, followUp: undefined }))}>None</button>}
                 </div>
               </div>
@@ -375,7 +382,7 @@ export function VisitPage() {
             </fieldset>
 
             <AttachedFiles patientId={encounter.patientId} encounterId={encounter.id} canAttach={has('DOCTOR', 'NURSE')} />
-            <VisitPayment encounterId={encounter.id} />
+            <VisitPayment ref={paymentRef} encounterId={encounter.id} savedWithFinish={editingDraft && isAuthor && !amending} />
 
             {amending ? (
               <div className="action-bar" style={{ display: 'grid', gap: 8 }}>

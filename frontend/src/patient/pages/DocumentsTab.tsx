@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, openUrl, putFile } from '../api';
 import type { PatientDocument, UploadStart } from '../types';
 import { date } from '../format';
+import { DateField } from '../../shared/DateField';
 
 const DOC_TYPES: Record<string, string> = {
   PRESCRIPTION: 'Prescription',
@@ -143,7 +144,8 @@ function UploadForm({ profileId, onDone, onCancel }: { profileId: string; onDone
         <input id="docTitle" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Blood test, Apollo, 2023" />
       </label>
       <label className="field">Date on the document (optional)
-        <input id="docDate" type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+        <DateField id="docDate" value={recordDate} onChange={setRecordDate} max={new Date().toISOString().slice(0, 10)}
+                   placeholder="Day Month Year" clearable style={{ width: '100%' }} />
       </label>
       <p className="small muted">Documents you add are marked as added by you, so doctors know they didn't come from a clinic.</p>
       {progress && <div className="alert info">{progress}</div>}

@@ -3,6 +3,7 @@ import { api, ApiError } from '../api';
 import { useSession } from '../session';
 import type { AccessRequestView, GrantView } from '../types';
 import { dateTime, sexLabel } from '../format';
+import { DateField } from '../../shared/DateField';
 
 interface Props {
   /** Start from a phone number (patient not at this clinic yet) or from a patient this clinic already has. */
@@ -166,7 +167,8 @@ export function AccessRequestFlow({ phone, patientId, onGranted, onCancel }: Pro
                   </select>
                 </label>
                 <label className="field">Only records from (optional)
-                  <input id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+                  <DateField id="fromDate" value={fromDate} onChange={setFromDate} max={new Date().toISOString().slice(0, 10)}
+                             placeholder="All records" clearable style={{ width: '100%' }} />
                 </label>
               </div>
               {has('DOCTOR') && (
