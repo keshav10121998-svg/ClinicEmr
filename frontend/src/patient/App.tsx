@@ -10,6 +10,7 @@ import { SharingTab } from './pages/SharingTab';
 import { VisitPage } from './pages/VisitPage';
 import { PendingRequests } from './components/PendingRequests';
 import { PinForm } from './pages/PinPage';
+import { PayDues } from './components/PayDues';
 
 type Tab = 'visits' | 'documents' | 'sharing';
 
@@ -104,6 +105,7 @@ function Home() {
                 <p className="muted small">{[profile.ageYears != null ? `${profile.ageYears} yrs` : '', ({ M: 'Male', F: 'Female', O: 'Other' } as Record<string, string>)[profile.gender]].filter(Boolean).join(' · ')}</p>
               </div>
             )}
+            {profile && tab === 'visits' && <PayDues profileId={profile.profileId} />}
             {profile && tab === 'visits' && <VisitsTab profileId={profile.profileId} />}
             {profile && tab === 'documents' && <DocumentsTab profileId={profile.profileId} />}
             {tab === 'sharing' && <SharingTab profiles={profiles} />}

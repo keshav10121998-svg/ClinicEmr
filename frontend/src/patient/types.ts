@@ -112,3 +112,27 @@ export interface Problem {
   fields?: Record<string, string>;
   [key: string]: unknown;
 }
+
+/** What this person owes one clinic; {@code pending} is already sent for the clinic to check. */
+export interface ClinicBalance {
+  clinicId: number;
+  clinicName: string;
+  balance: number;
+  pending: number;
+  nextDue?: string;
+}
+
+export interface PaymentRequest {
+  id: string;
+  clinicId: number;
+  clinicName: string;
+  amount: number;
+  note?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedAmount?: number;
+  rejectReason?: string;
+  createdAt: string;
+  decidedAt?: string;
+  /** The doctor's optional comment when approving */
+  decisionComment?: string;
+}

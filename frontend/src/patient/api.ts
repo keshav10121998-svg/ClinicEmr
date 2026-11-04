@@ -100,3 +100,25 @@ export async function putFile(url: string, contentType: string, file: Blob) {
 export function openUrl(url: string) {
   window.open(url, '_blank', 'noopener');
 }
+
+/** Sends a form with a file (multipart). The browser sets the Content-Type with its boundary. */
+export async function postForm<T>(path: string, form: FormData): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, { method: 'POST', headers: headers(false), body: form });
+  } catch {
+    throw new ApiError({ status: 0, code: 'NETWORK', detail: "Can't reach ClinicEMR. Check your internet connection." });
+  }
+  if (res.status === 401 && token) onUnauthorized();
+  if (!res.ok) {
+    let problem: Problem = { status: res.status };
+    try {
+      problem = { ...(await res.json()), status: res.status };
+    } catch {
+      // not JSON (e.g. the file was too big for the server)
+      if (res.status === 413) problem = { status: 413, detail: 'The file is too big. Send a smaller screenshot.' };
+    }
+    throw new ApiError(problem);
+  }
+  return (await res.json()) as T;
+}

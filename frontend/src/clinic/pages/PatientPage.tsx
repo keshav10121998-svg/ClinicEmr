@@ -11,6 +11,7 @@ import { AttachedFiles } from '../components/AttachedFiles';
 import { AppSignInCode } from '../components/AppSignInCode';
 import { VisitPaymentQuick } from '../components/VisitPayment';
 import { PatientPayments } from '../components/PatientPayments';
+import { PaymentRequests } from '../components/PaymentRequests';
 import { PAYMENTS_CHANGED } from '../payments';
 
 export function PatientPage() {
@@ -145,6 +146,7 @@ export function PatientPage() {
       {error && <div className="alert error">{error}</div>}
       <PatientHeader patient={patient} allergies={summary?.allergies} />
       <PatientPayments patientId={patientId!} />
+      <PaymentRequests patientId={patientId!} />
       <AppSignInCode patientId={patientId!} />
 
       {!clinical && (

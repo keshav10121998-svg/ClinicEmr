@@ -20,6 +20,7 @@ export function PatientPayments({ patientId }: { patientId: string }) {
   const [dues, setDues] = useState<PaymentDue[]>([]);
   const [amount, setAmount] = useState('');
   const [capped, setCapped] = useState(false);
+  const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<string>();
@@ -53,7 +54,9 @@ export function PatientPayments({ patientId }: { patientId: string }) {
     setBusy(true);
     setError(undefined);
     try {
-      const r = await api.post<PatientPaymentReceived>(`/clinic/patients/${patientId}/payments/receive`, body);
+      const r = await api.post<PatientPaymentReceived>(`/clinic/patients/${patientId}/payments/receive`,
+        { ...body, comment: comment.trim() || undefined });
+      setComment('');
       setDone(`${rupees(r.amount)} received: ` + r.appliedTo.map((a) => `${rupees(a.amount)} for the ${dateTime(a.visitAt)} visit`).join(', ')
         + (r.remainingBalance > 0 ? `. ${rupees(r.remainingBalance)} still due.` : '. Nothing left to collect.'));
       setAmount('');
@@ -103,6 +106,8 @@ export function PatientPayments({ patientId }: { patientId: string }) {
               Fully paid {rupees(balance)}
             </button>
           </form>
+          <input className="pay-comment" aria-label="Comment (optional)" placeholder="Comment (optional), e.g. Paid in cash"
+                 maxLength={300} value={comment} onChange={(e) => setComment(e.target.value)} disabled={busy} />
           {capped && <span className="small field-hint">Can't be more than the total balance of {rupees(balance)}.</span>}
         </>
       ) : (
@@ -134,6 +139,7 @@ function PaymentHistoryList({ entries }: { entries: PaymentHistoryEntry[] }) {
               <span className="small muted">{dateTime(g[0].receivedAt)}</span>
             </div>
             <span className="small">{g.length > 1 ? 'Balance received (split across visits)' : KIND[g[0].kind]} · by {g[0].recordedBy}</span>
+            {g[0].comment && <span className="small pay-history-comment">“{g[0].comment}”</span>}
             {g.map((e) => (
               <span key={e.id} className="small muted">
                 {g.length > 1 ? `${rupees(e.amount)} for` : 'For'} the visit on {dateTime(e.visitAt)}

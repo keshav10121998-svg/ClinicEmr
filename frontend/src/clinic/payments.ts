@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
-import type { PaymentDue, Role } from './types';
+import type { PaymentDue, PaymentRequest, Role } from './types';
 
 /** Fired after a payment is saved or settled, so the reminder count and lists refresh. */
 export const PAYMENTS_CHANGED = 'clinic-emr:payments-changed';
@@ -40,4 +40,23 @@ export function dueLabel(overdueDays: number) {
   if (overdueDays === 0) return 'due today';
   if (overdueDays > 0) return `${overdueDays} ${overdueDays === 1 ? 'day' : 'days'} late`;
   return `due in ${-overdueDays} ${overdueDays === -1 ? 'day' : 'days'}`;
+}
+
+/** Patients' payment proofs waiting for the doctor (all, or one patient's). Refreshes like the dues. */
+export function usePaymentRequests(patientId?: string) {
+  const [requests, setRequests] = useState<PaymentRequest[]>();
+  const load = useCallback(() => {
+    api.get<PaymentRequest[]>(`/clinic/payment-requests?status=PENDING${patientId ? `&patientId=${patientId}` : ''}`)
+      .then(setRequests).catch(() => setRequests([]));
+  }, [patientId]);
+  useEffect(() => {
+    load();
+    const t = window.setInterval(load, 5 * 60 * 1000);
+    window.addEventListener(PAYMENTS_CHANGED, load);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener(PAYMENTS_CHANGED, load);
+    };
+  }, [load]);
+  return { requests, reload: load };
 }

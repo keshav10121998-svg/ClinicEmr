@@ -44,7 +44,7 @@ public class PaymentService {
     }
 
     /** {@code dueDate} is needed when there is a balance, and can't be in the past. */
-    public record SavePayment(Integer paid, Integer balance, LocalDate dueDate) {
+    public record SavePayment(Integer paid, Integer balance, LocalDate dueDate, String comment) {
     }
 
     /** One balance still to collect. {@code overdueDays} is 0 on the due date, positive after it, negative before. */
@@ -95,7 +95,8 @@ public class PaymentService {
         int delta = paid - before.map(Payment::paid).orElse(0);
         if (delta != 0) {
             log(encounterId, ctx.clinicId(), v.profileId(), delta,
-                    delta < 0 ? "CORRECTION" : before.isPresent() ? "BALANCE" : "AT_VISIT", null, ctx.staffId());
+                    delta < 0 ? "CORRECTION" : before.isPresent() ? "BALANCE" : "AT_VISIT", null, ctx.staffId(),
+                    comment(req.comment()));
         }
         audit.staff(ctx.staffId(), ctx.clinicId(), "PAYMENT_SAVED", "encounter", encounterId.toString(),
                 Map.of("paid", paid, "balance", balance));
@@ -110,12 +111,12 @@ public class PaymentService {
         if (balance == 0) {
             throw new ApiException(HttpStatus.CONFLICT, "NOTHING_DUE", "There is no balance to collect for this visit.");
         }
-        return receive(ctx, encounterId, balance);
+        return receive(ctx, encounterId, balance, null);
     }
 
     /** Part (or all) of the balance was received: that much moves from balance into paid. */
     @Transactional
-    public Payment receive(ClinicContext ctx, UUID encounterId, Integer amount) {
+    public Payment receive(ClinicContext ctx, UUID encounterId, Integer amount, String comment) {
         Visit v = visit(ctx, encounterId);
         int balance = lockedBalance(encounterId);
         if (balance == 0) {
@@ -124,7 +125,7 @@ public class PaymentService {
         if (amount == null || amount < 1 || amount > balance) {
             throw ApiException.badRequest("INVALID_AMOUNT", "Enter an amount from ₹1 to ₹" + balance + ".");
         }
-        apply(encounterId, ctx.clinicId(), v.profileId(), amount, null, ctx.staffId());
+        apply(encounterId, ctx.clinicId(), v.profileId(), amount, null, ctx.staffId(), comment(comment));
         audit.staff(ctx.staffId(), ctx.clinicId(), "PAYMENT_RECEIVED", "encounter", encounterId.toString(),
                 Map.of("amount", amount));
         return find(encounterId).orElseThrow();
@@ -143,8 +144,13 @@ public class PaymentService {
      * first, until it runs out; the history keeps the whole payment together under one batch id.
      */
     @Transactional
-    public Received receiveForPatient(ClinicContext ctx, UUID patientId, Integer amount, boolean full) {
-        long profileId = patients.requireLinkedProfileId(ctx, patientId);
+    public Received receiveForPatient(ClinicContext ctx, UUID patientId, Integer amount, boolean full, String comment) {
+        return receiveForProfile(ctx, patients.requireLinkedProfileId(ctx, patientId), amount, full, comment);
+    }
+
+    /** Same as {@link #receiveForPatient}, for a profile already known to belong to this clinic. */
+    @Transactional
+    public Received receiveForProfile(ClinicContext ctx, long profileId, Integer amount, boolean full, String comment) {
         record Open(UUID encounterId, Instant startedAt, int balance) {
         }
         List<Open> open = jdbc.sql("""
@@ -174,7 +180,7 @@ public class PaymentService {
                 break;
             }
             int part = Math.min(left, o.balance());
-            apply(o.encounterId(), ctx.clinicId(), profileId, part, batch, ctx.staffId());
+            apply(o.encounterId(), ctx.clinicId(), profileId, part, batch, ctx.staffId(), comment(comment));
             applied.add(new Applied(o.encounterId(), o.startedAt(), part, o.balance() - part));
             left -= part;
         }
@@ -185,7 +191,7 @@ public class PaymentService {
 
     /** One line of a patient's payment history. Entries of one patient-level payment share {@code batchId}. */
     public record HistoryEntry(long id, Instant receivedAt, int amount, String kind, UUID batchId, UUID encounterId,
-                               Instant visitAt, String recordedBy) {
+                               Instant visitAt, String recordedBy, String comment) {
     }
 
     /** Totals for the patient at this clinic, and every payment received, newest first. */
@@ -207,7 +213,7 @@ public class PaymentService {
                 .single();
         List<HistoryEntry> entries = jdbc.sql("""
                 SELECT pe.id, pe.received_at, pe.amount, pe.kind, pe.batch_id, pe.encounter_id,
-                       e.started_at AS visit_at, s.name AS recorded_by
+                       e.started_at AS visit_at, s.name AS recorded_by, pe.comment
                   FROM payment_entry pe
                   JOIN encounter e ON e.id = pe.encounter_id
                   JOIN staff_user s ON s.id = pe.recorded_by
@@ -223,7 +229,7 @@ public class PaymentService {
     }
 
     /** Moves {@code amount} from balance into paid and writes it to the history. The row must be locked. */
-    private void apply(UUID encounterId, long clinicId, long profileId, int amount, UUID batch, long staffId) {
+    private void apply(UUID encounterId, long clinicId, long profileId, int amount, UUID batch, long staffId, String comment) {
         jdbc.sql("""
                 UPDATE visit_payment
                    SET paid = paid + :amount, balance = balance - :amount,
@@ -236,14 +242,16 @@ public class PaymentService {
                 .param("id", encounterId)
                 .param("staffId", staffId)
                 .update();
-        log(encounterId, clinicId, profileId, amount, "BALANCE", batch, staffId);
+        log(encounterId, clinicId, profileId, amount, "BALANCE", batch, staffId, comment);
     }
 
-    private void log(UUID encounterId, long clinicId, long profileId, int amount, String kind, UUID batch, long staffId) {
+    private void log(UUID encounterId, long clinicId, long profileId, int amount, String kind, UUID batch, long staffId,
+                     String comment) {
         jdbc.sql("""
-                INSERT INTO payment_entry (encounter_id, clinic_id, profile_id, amount, kind, batch_id, recorded_by)
-                VALUES (:id, :clinicId, :profileId, :amount, :kind, :batch, :staffId)
+                INSERT INTO payment_entry (encounter_id, clinic_id, profile_id, amount, kind, batch_id, recorded_by, comment)
+                VALUES (:id, :clinicId, :profileId, :amount, :kind, :batch, :staffId, :comment)
                 """)
+                .param("comment", comment)
                 .param("id", encounterId)
                 .param("clinicId", clinicId)
                 .param("profileId", profileId)
@@ -252,6 +260,15 @@ public class PaymentService {
                 .param("batch", batch)
                 .param("staffId", staffId)
                 .update();
+    }
+
+    /** An optional comment, trimmed to 300 characters; blank means none. */
+    static String comment(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String t = raw.trim();
+        return t.length() > 300 ? t.substring(0, 300) : t;
     }
 
     private int lockedBalance(UUID encounterId) {

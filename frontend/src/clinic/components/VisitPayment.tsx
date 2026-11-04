@@ -19,6 +19,7 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string>();
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     api.get<Payment | undefined>(`/clinic/encounters/${encounterId}/payment`)
@@ -47,7 +48,8 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
     setError(undefined);
     try {
       show(await api.put<Payment>(`/clinic/encounters/${encounterId}/payment`,
-        { paid: paidN, balance: balanceN, dueDate: balanceN > 0 ? dueDate : undefined }));
+        { paid: paidN, balance: balanceN, dueDate: balanceN > 0 ? dueDate : undefined, comment: comment.trim() || undefined }));
+      setComment('');
       setNote('Saved');
       paymentsChanged();
     } catch (e) {
@@ -119,6 +121,11 @@ export function VisitPayment({ encounterId }: { encounterId: string }) {
       )}
 
       {changed && (
+        <label className="field">Comment (optional, kept in the payment history)
+          <input value={comment} maxLength={300} placeholder="e.g. Paid by UPI" onChange={(e) => setComment(e.target.value)} />
+        </label>
+      )}
+      {changed && (
         <button type="button" className="primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save payment'}</button>
       )}
     </div>
@@ -166,13 +173,15 @@ export function VisitPaymentQuick({ visit }: { visit: EncounterListItem }) {
   const [error, setError] = useState<string>();
   const [amount, setAmount] = useState('');
   const [capped, setCapped] = useState(false);
+  const [comment, setComment] = useState('');
 
   async function receive(value: number) {
     setBusy(true);
     setError(undefined);
     try {
-      await api.post(`/clinic/encounters/${visit.id}/payment/receive`, { amount: value });
+      await api.post(`/clinic/encounters/${visit.id}/payment/receive`, { amount: value, comment: comment.trim() || undefined });
       setAmount('');
+      setComment('');
       setCapped(false);
       paymentsChanged();
     } catch (e) {
@@ -230,6 +239,8 @@ export function VisitPaymentQuick({ visit }: { visit: EncounterListItem }) {
         </button>
         <button type="button" className="small primary" disabled={busy} onClick={() => receive(balance)}>Full {rupees(balance)}</button>
       </form>
+      <input className="pay-comment" aria-label="Comment (optional)" placeholder="Comment (optional)" maxLength={300}
+             value={comment} onChange={(e) => setComment(e.target.value)} disabled={busy} />
       {capped && <span className="small field-hint">Can't be more than {rupees(balance)} due.</span>}
       {n >= 1 && n < balance && !capped && <span className="small muted">{rupees(balance - n)} will still be due on {date(visit.dueDate)}.</span>}
       {error && <span className="small" style={{ color: 'var(--danger)' }}>{error}</span>}

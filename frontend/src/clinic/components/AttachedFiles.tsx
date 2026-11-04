@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, putFile } from '../api';
 import type { DocumentDetail, DocumentSummary } from '../types';
 import { date } from '../format';
+import { FilePreview, type PreviewPage } from './FilePreview';
 
 const KINDS: [string, string][] = [['LAB_REPORT', 'Report'], ['IMAGING', 'Scan / X-ray'], ['PRESCRIPTION', 'Prescription'], ['OTHER', 'Other']];
 const KIND_LABEL: Record<string, string> = {
@@ -19,6 +20,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
   const [kind, setKind] = useState('LAB_REPORT');
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
+  const [preview, setPreview] = useState<{ title: string; pages: PreviewPage[] }>();
 
   const query = encounterId ? `?encounterId=${encounterId}` : '';
   useEffect(() => {
@@ -49,15 +51,14 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
     if (added.length) setDocs((d) => [...added, ...(d ?? [])]);
   }
 
+  // Shown inside the app (all pages of the document) instead of downloading it
   async function open(doc: DocumentSummary) {
-    const tab = window.open('', '_blank');
+    setError(undefined);
     try {
       const detail = await api.get<DocumentDetail>(`/clinic/patients/${patientId}/documents/${doc.id}`);
-      const url = detail.pages[0]?.url;
-      if (!url) throw new Error();
-      if (tab) tab.location.href = url; else window.location.href = url;
+      if (detail.pages.length === 0) throw new Error();
+      setPreview({ title: doc.title || KIND_LABEL[doc.docType] || 'File', pages: detail.pages.map((p) => ({ url: p.url, mimeType: p.mimeType })) });
     } catch {
-      tab?.close();
       setError("That file couldn't be opened.");
     }
   }
@@ -89,6 +90,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
           </label>
         </div>
       )}
+      {preview && <FilePreview title={preview.title} pages={preview.pages} onClose={() => setPreview(undefined)} />}
     </div>
   );
 }

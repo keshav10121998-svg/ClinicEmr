@@ -5,6 +5,7 @@ import type { VisitCount, VisitorList, VisitRange } from '../types';
 import { ageSex } from '../format';
 import { useSession } from '../session';
 import { dueLabel, onlyMine, paymentsChanged, rupees, useDuePayments } from '../payments';
+import { PaymentRequests } from '../components/PaymentRequests';
 
 const LABELS: Record<VisitRange, string> = {
   TODAY: 'Today', YESTERDAY: 'Yesterday', LAST_7_DAYS: 'Last 7 days', THIS_YEAR: 'This year', ALL: 'All time',
@@ -40,6 +41,7 @@ export function OverviewPage() {
   return (
     <>
       <h1>Overview</h1>
+      <PaymentRequests onOpenPatient={(id) => navigate(`/patients/${id}`)} />
       <MoneyToCollect />
       {error && <div className="alert error">{error}</div>}
 

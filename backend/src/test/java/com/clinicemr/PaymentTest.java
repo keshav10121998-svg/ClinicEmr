@@ -125,7 +125,8 @@ class PaymentTest extends IntegrationTestBase {
         perform(post(receive), doctor, clinic, "{\"amount\": 0}").andExpect(status().isBadRequest());
 
         // 200 is taken off the latest visit first (180), then the next one (20 of its 60)
-        JsonNode r = body(perform(post(receive), doctor, clinic, "{\"amount\": 200}").andExpect(status().isOk()));
+        JsonNode r = body(perform(post(receive), doctor, clinic, "{\"amount\": 200, \"comment\": \"Paid in cash at the counter\"}")
+                .andExpect(status().isOk()));
         assertThat(r.get("remainingBalance").asInt()).isEqualTo(140);
         assertThat(r.get("appliedTo")).hasSize(2);
         assertThat(r.get("appliedTo").get(0).get("encounterId").asText()).isEqualTo(latest.toString());
@@ -157,6 +158,10 @@ class PaymentTest extends IntegrationTestBase {
         assertThat(batch.get("batchId").isTextual()).isTrue();
         assertThat(h.get("entries").get(2).get("batchId").asText()).isEqualTo(batch.get("batchId").asText());
         assertThat(batch.get("recordedBy").asText()).isEqualTo("Asha Mehta");
+        // The 200 payment (older batch) carries its comment on each part
+        assertThat(h.get("entries").get(3).get("comment").asText()).isEqualTo("Paid in cash at the counter");
+        assertThat(h.get("entries").get(4).get("comment").asText()).isEqualTo("Paid in cash at the counter");
+        assertThat(batch.hasNonNull("comment")).isFalse();
     }
 
     private String patient(String token, long clinic, String name) throws Exception {

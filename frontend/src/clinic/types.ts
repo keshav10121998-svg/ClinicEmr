@@ -361,6 +361,7 @@ export interface PaymentHistoryEntry {
   encounterId: string;
   visitAt: string;
   recordedBy: string;
+  comment?: string;
 }
 
 export interface PaymentHistory {
@@ -374,4 +375,23 @@ export interface PatientPaymentReceived {
   amount: number;
   remainingBalance: number;
   appliedTo: { encounterId: string; visitAt: string; amount: number; balanceLeft: number }[];
+}
+
+/** A patient's "I've paid" with a screenshot, for the doctor to approve or reject. */
+export interface PaymentRequest {
+  id: string;
+  patientId: string;
+  patientName: string;
+  mrn?: string;
+  amount: number;
+  note?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedAmount?: number;
+  rejectReason?: string;
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  decisionComment?: string;
+  proofUrl?: string;
+  proofType?: string;
 }

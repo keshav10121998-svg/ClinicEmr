@@ -185,7 +185,7 @@ public class PatientRecordsService {
     }
 
     /** Internal id of a profile this account manages, or 404 so other people's profiles can't be probed. */
-    long requireProfile(PatientContext p, UUID profileId) {
+    public long requireProfile(PatientContext p, UUID profileId) {
         return jdbc.sql("""
                 SELECT pp.id FROM profile_access pa JOIN patient_profile pp ON pp.id = pa.profile_id
                  WHERE pa.account_id = :accountId AND pp.public_id = :profileId

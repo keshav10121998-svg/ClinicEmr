@@ -14,6 +14,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
+| Payment proofs | Patient: `GET /api/v1/patient/profiles/{id}/balances`, `POST …/payment-requests` (multipart: clinicId, amount, note, proof), `GET …/payment-requests`. Clinic: `GET /api/v1/clinic/payment-requests?status=&patientId=`, `POST …/{id}/approve`, `POST …/{id}/reject` (reason) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
 | Prescription | `GET /api/v1/clinic/encounters/{id}/prescription.pdf?paper=A5\|A4` |
@@ -54,6 +55,17 @@ layout. Clinic screens so far:
   have a mic: say "three hundred fifty" or "₹1,200". A patient's page has a **Payments** card: Total / Paid / Balance across
   visits, an amount box that can't go above the total balance (taken off the visits latest first), **Fully paid**,
   and **Payment history**: every amount received, when, for which visit and by whom (a split payment is shown once).
+- **Payment proofs from patients:** in the patient app's Visits tab a patient sees what they owe each clinic and taps
+  **I've paid, send proof**: amount (never more than they owe, counting proofs still waiting), a screenshot or PDF
+  (checked to really be an image/PDF, up to 8 MB) and an optional UPI reference. The clinic sees **Payment requests**
+  on Overview (counted on the tab) and on the patient's page, with **View proof**. A doctor or admin **Approves**
+  (recorded like Received, latest visit first, and added to the history) or **Rejects** with a reason the patient sees.
+- **Comments (optional):** every way of recording money (the visit's Payment card, the visit-list amount box, the
+  patient's Payments card) has a Comment box; the comment is saved with that payment and shown in Payment history.
+  Approving a patient's proof asks for an optional comment, which the patient sees in the app.
+- **Preview, not download:** on the clinic side, **View proof** and **Open** on attached files show the file inside the
+  app: photos at full width, PDFs in an embedded viewer (all pages of a document), with **Open in new tab** as a
+  fallback for phones that can't show PDFs inline. The server allows framing only by the app itself (same origin).
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
   time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished

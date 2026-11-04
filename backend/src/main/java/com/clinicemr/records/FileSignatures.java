@@ -7,12 +7,12 @@ import java.util.Arrays;
  * Checks that a file's first bytes match the type it claims, so a renamed executable or script can't be stored
  * as a "PDF". Not a virus scan; ClamAV scanning is still planned.
  */
-final class FileSignatures {
+public final class FileSignatures {
 
     private FileSignatures() {
     }
 
-    static boolean matches(String mimeType, byte[] b) {
+    public static boolean matches(String mimeType, byte[] b) {
         return switch (mimeType) {
             case "application/pdf" -> startsWith(b, 0, "%PDF-".getBytes(StandardCharsets.US_ASCII));
             case "image/jpeg" -> startsWith(b, 0, new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});

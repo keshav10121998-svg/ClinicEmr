@@ -38,23 +38,23 @@ public class PaymentController {
         return payments.settle(ctx, id);
     }
 
-    public record Receive(Integer amount) {
+    public record Receive(Integer amount, String comment) {
     }
 
     /** Part of the balance received (all of it with the full amount). */
     @PostMapping("/api/v1/clinic/encounters/{id}/payment/receive")
     public PaymentService.Payment receive(ClinicContext ctx, @PathVariable UUID id, @RequestBody Receive req) {
-        return payments.receive(ctx, id, req.amount());
+        return payments.receive(ctx, id, req.amount(), req.comment());
     }
 
-    public record ReceiveForPatient(Integer amount, boolean full) {
+    public record ReceiveForPatient(Integer amount, boolean full, String comment) {
     }
 
     /** A payment against the patient's total balance, split across visits latest first; {@code full} pays it all. */
     @PostMapping("/api/v1/clinic/patients/{patientId}/payments/receive")
     public PaymentService.Received receiveForPatient(ClinicContext ctx, @PathVariable UUID patientId,
                                                      @RequestBody ReceiveForPatient req) {
-        return payments.receiveForPatient(ctx, patientId, req.amount(), req.full());
+        return payments.receiveForPatient(ctx, patientId, req.amount(), req.full(), req.comment());
     }
 
     /** What the patient was charged, paid and owes here, and every payment received. */

@@ -10,6 +10,11 @@ spring:
       maximum-pool-size: ${DB_POOL_SIZE:10}
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      # Payment proof screenshots from phones (the app allows up to 8 MB)
+      max-file-size: 10MB
+      max-request-size: 11MB
   jackson:
     default-property-inclusion: non_null
   threads:

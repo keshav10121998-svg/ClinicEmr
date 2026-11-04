@@ -1,6 +1,6 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ChartIcon, ExitIcon, PeopleIcon, StaffIcon } from './components/Icons';
-import { onlyMine, useDuePayments } from './payments';
+import { onlyMine, useDuePayments, usePaymentRequests } from './payments';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterClinicPage } from './pages/RegisterClinicPage';
@@ -32,7 +32,9 @@ export function App() {
 function ClinicShell() {
   const { has } = useSession();
   const { dues } = useDuePayments(onlyMine(has));
-  const due = dues?.length ?? 0;
+  const { requests } = usePaymentRequests();
+  // Balances due now plus patients' payment proofs waiting to be checked
+  const due = (dues?.length ?? 0) + (requests?.length ?? 0);
   return (
     <>
       <TopBar due={due} />

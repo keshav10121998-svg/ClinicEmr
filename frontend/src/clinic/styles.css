@@ -357,3 +357,19 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .pay-history { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
 .pay-history-item { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
 .pay-history-item .negative { color: var(--danger); }
+.payment-requests { border-color: var(--accent); }
+.request-row { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.request-row .due-name { font-weight: 600; font-size: 15px; padding: 0; }
+.pay-comment { max-width: 340px; }
+.pay-quick .pay-comment { flex-basis: 100%; }
+.pay-history-comment { color: var(--ink); font-style: italic; }
+
+/* ----- file preview (payment proofs, attached files) */
+.preview-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(16, 24, 22, .6); display: grid; place-items: center; padding: 12px; }
+.preview { width: min(900px, 100%); max-height: calc(100dvh - 24px); display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--surface); border-radius: 12px; overflow: hidden; }
+.preview-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.preview-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.preview-body { overflow: auto; display: grid; gap: 10px; padding: 12px; background: #f1f3f2; justify-items: center; }
+.preview-body img { max-width: 100%; height: auto; border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.preview-pdf { width: 100%; display: grid; gap: 6px; justify-items: center; }
+.preview-pdf iframe { width: 100%; height: min(75dvh, 900px); border: 0; background: #fff; border-radius: 6px; }
