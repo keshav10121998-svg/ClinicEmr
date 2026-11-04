@@ -64,7 +64,8 @@ public class VisitStatsService {
         Row row = jdbc.sql("""
                 SELECT count(DISTINCT e.profile_id)::int AS patients, count(*)::int AS visits
                   FROM encounter e
-                 WHERE e.clinic_id = :clinicId AND e.status <> 'CANCELLED'
+                  JOIN patient_profile p ON p.id = e.profile_id
+                 WHERE e.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample
                    AND e.started_at >= :from AND e.started_at < :to
                 """)
                 .param("clinicId", ctx.clinicId())
@@ -101,7 +102,7 @@ public class VisitStatsService {
                   JOIN patient_profile p ON p.id = e.profile_id
                   LEFT JOIN patient_identifier pi ON pi.profile_id = p.id AND pi.clinic_id = e.clinic_id
                   JOIN staff_user s ON s.id = e.doctor_id
-                 WHERE e.clinic_id = :clinicId AND e.status <> 'CANCELLED'
+                 WHERE e.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample
                    AND e.started_at >= :from AND e.started_at < :to
                  ORDER BY e.started_at DESC
                  LIMIT :limit

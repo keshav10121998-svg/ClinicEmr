@@ -40,16 +40,16 @@ public class PatientService {
     }
 
     private record PatientRow(long id, UUID publicId, String mrn, String name, String gender, LocalDate dob,
-                              boolean dobEstimated, String primaryPhoneE164, String bloodGroup, String abhaNumber) {
+                              boolean dobEstimated, String primaryPhoneE164, String bloodGroup, String abhaNumber, boolean sample) {
         PatientView toView() {
             return new PatientView(publicId, mrn, name, gender, dob, dobEstimated, PatientDtos.age(dob),
-                    primaryPhoneE164, bloodGroup, abhaNumber != null);
+                    primaryPhoneE164, bloodGroup, abhaNumber != null, sample);
         }
     }
 
     private static final String SELECT_LINKED = """
             SELECT p.id, p.public_id, pi.mrn, p.name, p.gender, p.dob, p.dob_estimated,
-                   p.primary_phone_e164, p.blood_group, p.abha_number
+                   p.primary_phone_e164, p.blood_group, p.abha_number, p.sample
               FROM patient_profile p
               JOIN patient_identifier pi ON pi.profile_id = p.id AND pi.clinic_id = :clinicId
              WHERE p.deleted_at IS NULL AND p.merged_into_id IS NULL
@@ -127,7 +127,7 @@ public class PatientService {
 
     public record RecentPatient(java.util.UUID publicId, String mrn, String name, String gender, LocalDate dob,
                                 boolean dobEstimated, Integer ageYears, String phone, java.time.Instant lastVisitAt,
-                                int visitCount, java.time.Instant registeredAt) {
+                                int visitCount, java.time.Instant registeredAt, boolean sample) {
     }
 
     /**
@@ -136,7 +136,7 @@ public class PatientService {
      */
     public List<RecentPatient> recent(ClinicContext ctx, int limit) {
         record Row(java.util.UUID publicId, String mrn, String name, String gender, LocalDate dob, boolean dobEstimated,
-                   String primaryPhoneE164, java.time.Instant lastVisitAt, int visitCount, java.time.Instant registeredAt) {
+                   String primaryPhoneE164, java.time.Instant lastVisitAt, int visitCount, java.time.Instant registeredAt, boolean sample) {
         }
         return jdbc.sql("""
                 SELECT p.public_id, pi.mrn, p.name, p.gender, p.dob, p.dob_estimated, p.primary_phone_e164,
@@ -144,7 +144,7 @@ public class PatientService {
                          WHERE e.profile_id = p.id AND e.clinic_id = :clinicId AND e.status = 'SIGNED') AS last_visit_at,
                        (SELECT count(*) FROM encounter e
                          WHERE e.profile_id = p.id AND e.clinic_id = :clinicId AND e.status = 'SIGNED')::int AS visit_count,
-                       pi.created_at AS registered_at
+                       pi.created_at AS registered_at, p.sample
                   FROM patient_profile p
                   JOIN patient_identifier pi ON pi.profile_id = p.id AND pi.clinic_id = :clinicId
                  WHERE p.deleted_at IS NULL AND p.merged_into_id IS NULL
@@ -158,7 +158,7 @@ public class PatientService {
                 .query(Row.class)
                 .list().stream()
                 .map(r -> new RecentPatient(r.publicId(), r.mrn(), r.name(), r.gender(), r.dob(), r.dobEstimated(),
-                        PatientDtos.age(r.dob()), r.primaryPhoneE164(), r.lastVisitAt(), r.visitCount(), r.registeredAt()))
+                        PatientDtos.age(r.dob()), r.primaryPhoneE164(), r.lastVisitAt(), r.visitCount(), r.registeredAt(), r.sample()))
                 .toList();
     }
 

@@ -11,6 +11,7 @@ import { VisitPage } from './pages/VisitPage';
 import { PendingRequests } from './components/PendingRequests';
 import { PinForm } from './pages/PinPage';
 import { PayDues } from './components/PayDues';
+import { InstallApp } from '../shared/InstallApp';
 
 type Tab = 'visits' | 'documents' | 'sharing';
 
@@ -78,6 +79,7 @@ function Home() {
       </header>
       <main>
         {error && <div className="alert error">{error}</div>}
+        <InstallApp appName="My health" />
         {changingPin && <PinForm changing={session!.pinSet} onDone={() => setChangingPin(false)} onSkip={() => setChangingPin(false)} />}
         {profiles && pending.length > 0 && (
           <PendingRequests requests={pending} profiles={profiles} onDone={loadPending} />

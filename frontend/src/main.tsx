@@ -7,6 +7,9 @@ import { App as PatientApp } from './patient/App';
 import { SessionProvider as PatientSession } from './patient/session';
 import clinicCss from './clinic/styles.css?inline';
 import patientCss from './patient/styles.css?inline';
+import { registerServiceWorker } from './shared/InstallApp';
+
+registerServiceWorker();
 
 /**
  * One app for everyone. Patients and families use /my; clinic staff use everything else. Each side keeps its own

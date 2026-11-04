@@ -32,7 +32,7 @@ public final class PatientDtos {
 
     public record PatientView(UUID publicId, String mrn, String name, String gender, LocalDate dob,
                               boolean dobEstimated, Integer ageYears, String phone, String bloodGroup,
-                              boolean hasAbha) {
+                              boolean hasAbha, boolean sample) {
     }
 
     public record DuplicateCandidate(UUID publicId, String mrn, String name, String gender, Integer ageYears,

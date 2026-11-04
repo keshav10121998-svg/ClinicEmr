@@ -147,7 +147,7 @@ export function PatientPage() {
       <PatientHeader patient={patient} allergies={summary?.allergies} />
       <PatientPayments patientId={patientId!} />
       <PaymentRequests patientId={patientId!} />
-      <AppSignInCode patientId={patientId!} />
+      {patient?.sample ? <SampleNote /> : <AppSignInCode patientId={patientId!} />}
 
       {!clinical && (
         <div className="alert info">Visit records are visible to doctors and nurses.</div>
@@ -189,5 +189,33 @@ export function PatientPage() {
         </div>
       )}
     </>
+  );
+}
+
+/** On the practice patient: what it is for, and a way to remove it once the clinic is ready. */
+function SampleNote() {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  async function remove() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.del('/clinic/sample-patient');
+      navigate('/patients', { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not remove the sample patient.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="alert info sample-note">
+      <span><b>This is a sample patient to practise on.</b> Open the finished visit to see a prescription, or tap
+        <b> Start visit</b> to try one yourself. It is not counted in your visit numbers.</span>
+      <button type="button" onClick={remove} disabled={busy}>{busy ? 'Removing…' : 'Remove sample patient'}</button>
+      {error && <span className="small" style={{ color: 'var(--danger)' }}>{error}</span>}
+    </div>
   );
 }

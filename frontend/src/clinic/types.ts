@@ -26,6 +26,8 @@ export interface Patient {
   phone?: string;
   bloodGroup?: string;
   hasAbha: boolean;
+  /** The practice patient from the getting-started card */
+  sample?: boolean;
 }
 
 export interface DuplicateCandidate {

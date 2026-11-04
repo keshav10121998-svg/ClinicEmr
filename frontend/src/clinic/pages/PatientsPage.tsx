@@ -6,6 +6,8 @@ import { ageSex, date } from '../format';
 import { AccessRequestFlow } from '../components/AccessRequestFlow';
 import { PhoneInput, toMobileDigits } from '../../shared/PhoneInput';
 import { DateField } from '../../shared/DateField';
+import { InstallApp } from '../../shared/InstallApp';
+import { useSession } from '../session';
 
 interface RecentPatient {
   publicId: string;
@@ -18,6 +20,7 @@ interface RecentPatient {
   lastVisitAt?: string;
   visitCount: number;
   registeredAt: string;
+  sample: boolean;
 }
 
 /** Home screen: the clinic's patients, most recently seen first. Tap one to open; typing only narrows the list. */
@@ -55,6 +58,11 @@ export function PatientsPage() {
           {showRegister ? 'Close' : '+ New patient'}
         </button>
       </div>
+
+      <InstallApp appName="ClinicEMR" />
+      {patients && !showRegister && patients.filter((p) => !p.sample).length < 3 && (
+        <StartCard hasSample={patients.some((p) => p.sample)} onAddPatient={() => setShowRegister(true)} />
+      )}
 
       {showRegister && (
         <button type="button" className="phone-only" onClick={() => setShowRegister(false)}>Cancel new patient</button>
@@ -94,7 +102,7 @@ export function PatientsPage() {
           {shown?.map((p) => (
             <button key={p.publicId} className="patient-row" onClick={() => navigate(`/patients/${p.publicId}`)}>
               <span className="avatar" aria-hidden="true">{initials(p.name)}</span>
-              <span className="patient-name">{p.name}</span>
+              <span className="patient-name">{p.name}{p.sample && <span className="chip sample-chip">Sample</span>}</span>
               <span className="muted small">{ageSex(p)} · <span className="mono">{p.mrn}</span>{p.phone ? ` · ${p.phone.replace(/^\+91/, '')}` : ''}</span>
               <span className="small last-visit">{p.lastVisitAt ? `Last visit ${date(p.lastVisitAt)}` : 'No visits yet'}
                 {p.visitCount > 0 && <><br /><b className="visit-total">{p.visitCount} {p.visitCount === 1 ? 'visit' : 'visits'}</b></>}</span>
@@ -220,4 +228,57 @@ function RegisterPatient({ initialPhone, initialName, onDone }:
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+/**
+ * For a clinic that is just starting: the three steps of a visit, and a sample patient to try them on. Shown until
+ * the clinic has three patients of its own, or until Hide (remembered on this phone).
+ */
+function StartCard({ hasSample, onAddPatient }: { hasSample: boolean; onAddPatient: () => void }) {
+  const navigate = useNavigate();
+  const { clinic } = useSession();
+  const key = `start-card-hidden-${clinic?.clinicId}`;
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(key) === '1'; } catch { return false; } });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  if (hidden) return null;
+
+  async function openSample() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const { publicId } = await api.post<{ publicId: string }>('/clinic/sample-patient');
+      navigate(`/patients/${publicId}`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not open the sample patient.');
+      setBusy(false);
+    }
+  }
+
+  function hide() {
+    try { localStorage.setItem(key, '1'); } catch { /* private mode */ }
+    setHidden(true);
+  }
+
+  return (
+    <div className="card start-card" role="region" aria-label="Getting started">
+      <div className="between">
+        <h2>Start in 3 steps</h2>
+        <button type="button" className="link small" onClick={hide}>Hide</button>
+      </div>
+      <ol className="start-steps">
+        <li><b>Add a patient</b><span>Tap <b>+</b>, then fill in name, age and mobile.</span></li>
+        <li><b>Start a visit</b><span>Type, or tap the 🎤 mic and speak: complaints, medicines, advice.</span></li>
+        <li><b>Finish visit</b><span>Print the prescription and note what the patient paid.</span></li>
+      </ol>
+      {error && <div className="alert error">{error}</div>}
+      <div className="row">
+        <button type="button" className="primary" onClick={openSample} disabled={busy}>
+          {busy ? 'Opening…' : hasSample ? 'Open the sample patient' : 'Try with a sample patient'}
+        </button>
+        <button type="button" onClick={onAddPatient}>+ Add your first patient</button>
+      </div>
+    </div>
+  );
 }

@@ -74,6 +74,15 @@ layout. Clinic screens so far:
   Typing only narrows the list. A patient's page shows total visits, first and last visit, then every visit.
   Registering asks for name, sex, age and mobile; date of birth, ABHA and blood group are optional extras. A
   duplicate warning offers the existing record.
+- **Getting started:** until a clinic has three patients, Patients shows **Start in 3 steps** (add a patient, start
+  a visit, finish visit) and **Try with a sample patient**: "Sunita Sharma (sample)" with one finished visit
+  (vitals, diagnosis, two medicines, a test, advice, follow-up). The sample has no mobile number, so it never
+  reaches the patient app or other clinics, it is left out of Overview counts, and **Remove sample patient** on its
+  page hides it.
+- **Installs like an app:** both sides are installable web apps (`manifest.json` for clinic staff,
+  `manifest-my.json` "My health" for patients, plus `sw.js`). A banner offers **Install** on Android/desktop
+  Chrome, and step-by-step help on iPhone and inside WhatsApp's browser; **Not now** hides it for 30 days. With no
+  internet the app shows a "No internet connection" page; records are never cached on the phone.
 - **Patient:** header with allergies in red (or "not asked yet"), active problems, current medicines, latest
   vitals, allergy editor, visits at this clinic with print links, and reports and files (attach a photo or PDF).
   Front desk sees the header only.

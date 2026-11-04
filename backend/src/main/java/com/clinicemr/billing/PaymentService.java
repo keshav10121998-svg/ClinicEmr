@@ -296,7 +296,7 @@ public class PaymentService {
                   JOIN patient_profile p ON p.id = vp.profile_id
                   LEFT JOIN patient_identifier pi ON pi.profile_id = p.id AND pi.clinic_id = vp.clinic_id
                   JOIN staff_user s ON s.id = e.doctor_id
-                 WHERE vp.clinic_id = :clinicId AND vp.balance > 0 AND e.status <> 'CANCELLED'
+                 WHERE vp.clinic_id = :clinicId AND vp.balance > 0 AND e.status <> 'CANCELLED' AND p.deleted_at IS NULL
                    AND (NOT :dueNow OR vp.due_date <= :today)
                    AND (NOT :mine OR e.doctor_id = :staffId)
                    AND (CAST(:patientId AS uuid) IS NULL OR p.public_id = CAST(:patientId AS uuid))
