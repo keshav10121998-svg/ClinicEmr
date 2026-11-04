@@ -69,12 +69,21 @@ export function AllergyEditor({ patientId, allergies, onChange }:
     }
   }
 
+  // Removing an allergy needs a reason, typed on the page (pop-up boxes are blocked in some browsers)
+  const [removing, setRemoving] = useState<string>();
+  const [reason, setReason] = useState('');
+
   async function inactivate(id: string) {
-    const reason = window.prompt?.('Why is this allergy no longer valid?');
-    if (!reason) return;
+    if (reason.trim().length < 3) {
+      setError('Write why this allergy is no longer valid.');
+      return;
+    }
+    setError(undefined);
     try {
       onChange(await api.post<AllergyList>(`/clinic/patients/${patientId}/allergies/${id}/status`,
-        { status: 'ENTERED_IN_ERROR', reason }));
+        { status: 'ENTERED_IN_ERROR', reason: reason.trim() }));
+      setRemoving(undefined);
+      setReason('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not update.');
     }
@@ -90,12 +99,24 @@ export function AllergyEditor({ patientId, allergies, onChange }:
       </div>
       {error && <div className="alert error">{error}</div>}
       {allergies.allergies.map((a) => (
-        <div key={a.id} className="between">
-          <span>
-            <span className="chip allergy">{a.substance}</span>{' '}
-            <span className="small muted">{[a.severity?.toLowerCase(), a.reaction].filter(Boolean).join(' · ')}</span>
-          </span>
-          {has('DOCTOR') && <button className="link small" onClick={() => inactivate(a.id)}>Remove</button>}
+        <div key={a.id} style={{ display: 'grid', gap: 6 }}>
+          <div className="between">
+            <span>
+              <span className="chip allergy">{a.substance}</span>{' '}
+              <span className="small muted">{[a.severity?.toLowerCase(), a.reaction].filter(Boolean).join(' · ')}</span>
+            </span>
+            {has('DOCTOR') && removing !== a.id && (
+              <button className="link small" onClick={() => { setRemoving(a.id); setReason(''); setError(undefined); }}>Remove</button>
+            )}
+          </div>
+          {removing === a.id && (
+            <form className="row" onSubmit={(e) => { e.preventDefault(); inactivate(a.id); }}>
+              <input aria-label={`Why ${a.substance} is no longer valid`} placeholder="Why is it no longer valid? e.g. Entered by mistake"
+                     value={reason} onChange={(e) => setReason(e.target.value)} autoFocus style={{ flex: 1, minWidth: 180 }} />
+              <button className="small danger">Remove</button>
+              <button type="button" className="small" onClick={() => setRemoving(undefined)}>Cancel</button>
+            </form>
+          )}
         </div>
       ))}
       {allergies.allergies.length === 0 && (

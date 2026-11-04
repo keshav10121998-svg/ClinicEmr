@@ -373,3 +373,6 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .preview-body img { max-width: 100%; height: auto; border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 .preview-pdf { width: 100%; display: grid; gap: 6px; justify-items: center; }
 .preview-pdf iframe { width: 100%; height: min(75dvh, 900px); border: 0; background: #fff; border-radius: 6px; }
+
+.request-row .decide { display: grid; gap: 6px; }
+.staff-row .staff-phone-edit { grid-column: 1 / -1; display: grid; gap: 6px; }

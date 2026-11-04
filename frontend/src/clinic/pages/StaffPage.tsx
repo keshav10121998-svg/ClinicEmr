@@ -15,21 +15,28 @@ export function StaffPage() {
     api.get<StaffMember[]>('/clinic/staff').then(setStaff).catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load staff.'));
   }, []);
 
+  // Which person's sign-in mobile is being edited, and the digits typed so far
+  const [editing, setEditing] = useState<number>();
+  const [mobile, setMobile] = useState('');
+  const [saving, setSaving] = useState(false);
+
   // The mobile number someone can sign in with (their password doesn't change). Empty removes it.
-  async function editPhone(s: StaffMember) {
-    const typed = window.prompt(`10-digit mobile number ${s.name} can sign in with (leave empty to remove):`, s.phone ?? '');
-    if (typed === null) return;
-    const digits = toMobileDigits(typed);
+  async function savePhone(s: StaffMember) {
+    const digits = toMobileDigits(mobile);
     if (digits && !isMobile(digits)) {
-      window.alert('Enter exactly 10 digits, starting with 6, 7, 8 or 9.');
+      setError('Enter exactly 10 digits, starting with 6, 7, 8 or 9, or leave it empty to remove the mobile.');
       return;
     }
     setError(undefined);
+    setSaving(true);
     try {
       const updated = await api.put<StaffMember>(`/clinic/staff/${s.staffId}/phone`, { phone: digits });
       setStaff((list) => list.map((x) => (x.staffId === updated.staffId ? updated : x)));
+      setEditing(undefined);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not save the mobile number.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -45,10 +52,24 @@ export function StaffPage() {
               <b>{s.name}</b>
               <span className="chip ok">{s.roles.map(roleLabel).join(', ')}</span>
               <span className="muted small" style={{ overflowWrap: 'anywhere' }}>{s.email}</span>
-              <span className="small">
-                {s.phone ? <>Mobile <span className="mono">{s.phone}</span> </> : <span className="muted">No mobile for sign-in </span>}
-                <button type="button" className="link small" onClick={() => editPhone(s)}>{s.phone ? 'Change' : 'Add mobile'}</button>
-              </span>
+              {editing === s.staffId ? (
+                <form className="staff-phone-edit" onSubmit={(e) => { e.preventDefault(); savePhone(s); }}>
+                  <label className="field">Mobile {s.name} can sign in with (empty removes it)
+                    <PhoneInput value={mobile} onChange={setMobile} autoFocus disabled={saving} />
+                  </label>
+                  <span className="row">
+                    <button className="small primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+                    <button type="button" className="small" disabled={saving} onClick={() => { setEditing(undefined); setError(undefined); }}>Cancel</button>
+                  </span>
+                </form>
+              ) : (
+                <span className="small">
+                  {s.phone ? <>Mobile <span className="mono">{s.phone}</span> </> : <span className="muted">No mobile for sign-in </span>}
+                  <button type="button" className="link small" onClick={() => { setEditing(s.staffId); setMobile(s.phone ?? ''); setError(undefined); }}>
+                    {s.phone ? 'Change' : 'Add mobile'}
+                  </button>
+                </span>
+              )}
               {s.doctor && <span className="small">{s.doctor.registrationNo} · {s.doctor.registrationCouncil}</span>}
             </div>
           ))}

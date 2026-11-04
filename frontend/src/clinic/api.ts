@@ -87,7 +87,12 @@ export async function openPdf(linkPath: string) {
     }
   } catch (e) {
     tab?.close();
-    window.alert(e instanceof ApiError ? e.message : "The prescription couldn't be opened. Try again.");
+    // Some browsers block pop-up messages; the prescription simply doesn't open there
+    try {
+      window.alert(e instanceof ApiError ? e.message : "The prescription couldn't be opened. Try again.");
+    } catch {
+      console.warn("The prescription couldn't be opened.", e);
+    }
   }
 }
 
