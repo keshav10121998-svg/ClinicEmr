@@ -84,7 +84,7 @@ layout. Clinic screens so far:
   the visits in that period, how much of it was paid and the balance still owed (total = paid + balance), plus the
   money actually received in the period when that differs (old balances paid now). Tap a balance to list the
   patients who still owe for that period, the longest overdue first, with Call and Open. Doctors see their own
-  visits; admins and front desk see the whole clinic, and those who are also doctors can switch to **My visits**.
+  visits; admins and front desk see the whole clinic.
   Nurses don't see it. The sample patient, cancelled visits and removed patients don't count.
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,

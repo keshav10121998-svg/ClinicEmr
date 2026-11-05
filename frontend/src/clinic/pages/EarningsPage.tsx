@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { Earnings, EarningsRange, OwingList } from '../types';
 import { ageSex, date } from '../format';
-import { useSession } from '../session';
 import { dueLabel, PAYMENTS_CHANGED, rupees } from '../payments';
 
 const LABELS: Record<EarningsRange, string> = { TODAY: 'Today', THIS_MONTH: 'This month', THIS_YEAR: 'This year', ALL: 'All time' };
@@ -11,40 +10,31 @@ const RANGES = Object.keys(LABELS) as EarningsRange[];
 
 /**
  * Earnings today, this month, this year and in all: total charged, paid and balance for the visits in each period.
- * Tap a balance to see who still owes. Doctors see their own visits; admins and front desk can switch to the clinic.
+ * Tap a balance to see who still owes. Doctors see their own visits; admins and front desk see the whole clinic.
  */
 export function EarningsPage() {
   const navigate = useNavigate();
-  const { has } = useSession();
   const [params, setParams] = useSearchParams();
   const owingRange = RANGES.find((r) => r.toLowerCase() === params.get('owing'));
-  const mineAsked = params.get('scope') === 'mine';
   const [earnings, setEarnings] = useState<Earnings>();
   const [owing, setOwing] = useState<OwingList>();
   const [error, setError] = useState<string>();
   const list = useRef<HTMLDivElement>(null);
 
-  const set = (next: { owing?: EarningsRange; mine?: boolean }) => {
-    const p: Record<string, string> = {};
-    const o = 'owing' in next ? next.owing : owingRange;
-    const m = 'mine' in next ? next.mine : mineAsked;
-    if (o) p.owing = o.toLowerCase();
-    if (m) p.scope = 'mine';
-    setParams(p, { replace: true });
-  };
+  const show = (o?: EarningsRange) => setParams(o ? { owing: o.toLowerCase() } : {}, { replace: true });
 
   const load = useCallback(() => {
-    api.get<Earnings>(`/clinic/earnings?mine=${mineAsked}`)
+    api.get<Earnings>('/clinic/earnings')
       .then(setEarnings)
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load earnings.'));
-  }, [mineAsked]);
+  }, []);
 
   const loadOwing = useCallback(() => {
     if (!owingRange) { setOwing(undefined); return; }
-    api.get<OwingList>(`/clinic/earnings/owing?range=${owingRange.toLowerCase()}&mine=${mineAsked}`)
+    api.get<OwingList>(`/clinic/earnings/owing?range=${owingRange.toLowerCase()}`)
       .then(setOwing)
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the list.'));
-  }, [owingRange, mineAsked]);
+  }, [owingRange]);
 
   useEffect(() => { setOwing(undefined); loadOwing(); }, [loadOwing]);
   useEffect(() => { if (owingRange) list.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [owingRange]);
@@ -55,22 +45,11 @@ export function EarningsPage() {
     return () => window.removeEventListener(PAYMENTS_CHANGED, refresh);
   }, [load, loadOwing]);
 
-  // The scope switch is for admins and front desk who also see patients themselves
-  const showSwitch = earnings?.canSeeClinic && has('DOCTOR');
-  const mine = earnings?.mine ?? mineAsked;
 
   return (
     <>
-      <div className="between">
-        <h1>Earnings</h1>
-        {showSwitch && (
-          <span className="scope-switch" role="group" aria-label="Whose visits">
-            <button type="button" aria-pressed={!mine} onClick={() => set({ mine: false })}>Whole clinic</button>
-            <button type="button" aria-pressed={mine} onClick={() => set({ mine: true })}>My visits</button>
-          </span>
-        )}
-      </div>
-      {earnings && <p className="muted small" style={{ margin: 0 }}>{mine ? 'Your visits.' : 'All visits at this clinic.'} Total = paid + balance, for visits in each period.</p>}
+      <h1>Earnings</h1>
+      {earnings && <p className="muted small" style={{ margin: 0 }}>{earnings.mine ? 'Your visits.' : 'All visits at this clinic.'} Total = paid + balance, for visits in each period.</p>}
       {error && <div className="alert error">{error}</div>}
 
       <div className="earn-grid">
@@ -84,7 +63,7 @@ export function EarningsPage() {
               <div className="earn-split">
                 <div className="earn-paid"><span>Paid</span><b>{p ? rupees(p.paid) : '–'}</b></div>
                 <button type="button" className="earn-balance" disabled={!p || p.balance === 0} aria-pressed={owingRange === r}
-                        onClick={() => set({ owing: owingRange === r ? undefined : r })}
+                        onClick={() => show(owingRange === r ? undefined : r)}
                         aria-label={p ? `Balance ${rupees(p.balance)}. Show who owes` : 'Balance'}>
                   <span>Balance</span><b>{p ? rupees(p.balance) : '–'}</b>
                   {p && p.balance > 0 && <small>Who owes?</small>}
@@ -101,12 +80,16 @@ export function EarningsPage() {
       {owingRange && (
         // Opened from a balance: scrolled into view, since on a phone it is below the tiles
         <div ref={list} className="card money-due" style={{ scrollMarginTop: 64 }}>
-          <div className="between">
-            <h2>Balance · {LABELS[owingRange]}</h2>
-            <span className="row">
-              {owing && <b>{rupees(owing.balance)}</b>}
-              <button type="button" className="small" onClick={() => set({ owing: undefined })}>Close</button>
-            </span>
+          <div className="owing-head">
+            <div>
+              <h2>Balance · {LABELS[owingRange]}</h2>
+              {owing && <span className="owing-total">{rupees(owing.balance)} to collect</span>}
+            </div>
+            <button type="button" className="icon-close" onClick={() => show()} aria-label="Close the list" title="Close">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
           <p className="muted small" style={{ margin: 0 }}>
             Patients who still owe for visits {owingRange === 'ALL' ? 'at any time' : LABELS[owingRange].toLowerCase()}, the longest overdue first.
