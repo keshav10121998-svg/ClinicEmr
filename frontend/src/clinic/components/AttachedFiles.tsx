@@ -20,7 +20,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
   const [kind, setKind] = useState('LAB_REPORT');
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
-  const [preview, setPreview] = useState<{ title: string; pages: PreviewPage[] }>();
+  const [preview, setPreview] = useState<{ title: string; pages?: PreviewPage[]; error?: string }>();
 
   const query = encounterId ? `?encounterId=${encounterId}` : '';
   useEffect(() => {
@@ -54,12 +54,15 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
   // Shown inside the app (all pages of the document) instead of downloading it
   async function open(doc: DocumentSummary) {
     setError(undefined);
+    const title = doc.title || KIND_LABEL[doc.docType] || 'File';
+    // The preview opens at once and says "Opening…" while the file's links are fetched
+    setPreview({ title });
     try {
       const detail = await api.get<DocumentDetail>(`/clinic/patients/${patientId}/documents/${doc.id}`);
       if (detail.pages.length === 0) throw new Error();
-      setPreview({ title: doc.title || KIND_LABEL[doc.docType] || 'File', pages: detail.pages.map((p) => ({ url: p.url, mimeType: p.mimeType })) });
+      setPreview((p) => p && { title, pages: detail.pages.map((x) => ({ url: x.url, mimeType: x.mimeType })) });
     } catch {
-      setError("That file couldn't be opened.");
+      setPreview((p) => p && { title, error: "That file couldn't be opened. Close this and try again." });
     }
   }
 
@@ -90,7 +93,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
           </label>
         </div>
       )}
-      {preview && <FilePreview title={preview.title} pages={preview.pages} onClose={() => setPreview(undefined)} />}
+      {preview && <FilePreview title={preview.title} pages={preview.pages} error={preview.error} onClose={() => setPreview(undefined)} />}
     </div>
   );
 }

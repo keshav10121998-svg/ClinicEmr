@@ -16,13 +16,8 @@ export function VisitPage() {
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load this visit.'));
   }, [profileId, encounterId]);
 
-  async function download() {
-    setError(undefined);
-    try {
-      await openAuthed(`/patient/profiles/${profileId}/visits/${encounterId}/prescription-link`);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not open the prescription.');
-    }
+  function download() {
+    openAuthed(`/patient/profiles/${profileId}/visits/${encounterId}/prescription-link`);
   }
 
   const c = visit?.content;

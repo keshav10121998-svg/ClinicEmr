@@ -66,8 +66,13 @@ layout. Clinic screens so far:
   patient's Payments card) has a Comment box; the comment is saved with that payment and shown in Payment history.
   Approving a patient's proof asks for an optional comment, which the patient sees in the app.
 - **Preview, not download:** on the clinic side, **View proof** and **Open** on attached files show the file inside the
-  app: photos at full width, PDFs in an embedded viewer (all pages of a document), with **Open in new tab** as a
-  fallback for phones that can't show PDFs inline. The server allows framing only by the app itself (same origin).
+  app: photos at full width, PDF pages drawn inside the page with pdf.js (all pages of a document), with **Open in
+  new tab** as a fallback. Chrome on Android has no PDF viewer and would download a PDF straight away, so nothing is
+  shown in a frame.
+- **Print shows the prescription first:** **Print** opens the prescription full screen inside the app (pdf.js,
+  loaded only when first needed), with **Print**, **Download** and, where the phone supports it, **Share** underneath.
+  Print sends just the pages at the PDF's own paper size (A5 or A4). The patient app opens prescriptions and
+  documents (PDFs and photos) the same way.
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
   time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished
@@ -158,9 +163,9 @@ Phone-first screens for patients and families, in the same app under `/my`:
 - **Family switcher:** every profile linked to the number (registered at any clinic, or managed as caregiver).
 - **Visits:** every signed visit from every clinic, newest first. The detail page shows diagnoses, medicines in
   plain words ("for 7 days", "continue until the doctor says"), tests and next visit, marks visits the doctor
-  updated, and downloads the prescription PDF. Doctors' private notes never appear.
+  updated, and shows the prescription inside the app with Print, Download and Share. Doctors' private notes never appear.
 - **Documents:** clinic documents (marked "From <clinic>") and the family's own uploads (marked "Added by you").
-  Upload photos or PDFs (several pages per document) (checked by the backend before storing); open; delete own uploads after a
+  Upload photos or PDFs (several pages per document) (checked by the backend before storing); open inside the app (with Print, Download and Share); delete own uploads after a
   confirmation step.
 - **Sharing:** requests from clinics appear at the top of every tab, checked every 10 seconds while the app is
   open. The patient picks whose records, what (visits / documents) and for how long, or declines. The tab also

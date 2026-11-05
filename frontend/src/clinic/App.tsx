@@ -10,6 +10,7 @@ import { PatientPage } from './pages/PatientPage';
 import { VisitPage } from './pages/VisitPage';
 import { StaffPage } from './pages/StaffPage';
 import { OverviewPage } from './pages/OverviewPage';
+import { PdfViewerHost } from '../shared/pdf/PdfViewer';
 
 export function App() {
   const { session, clinic } = useSession();
@@ -37,6 +38,7 @@ function ClinicShell() {
   const due = (dues?.length ?? 0) + (requests?.length ?? 0);
   return (
     <>
+      <PdfViewerHost />
       <TopBar due={due} />
       <BottomTabs due={due} />
       <main className="page">

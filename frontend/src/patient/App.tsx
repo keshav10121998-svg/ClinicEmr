@@ -12,6 +12,7 @@ import { PendingRequests } from './components/PendingRequests';
 import { PinForm } from './pages/PinPage';
 import { PayDues } from './components/PayDues';
 import { InstallApp } from '../shared/InstallApp';
+import { PdfViewerHost } from '../shared/pdf/PdfViewer';
 
 type Tab = 'visits' | 'documents' | 'sharing';
 
@@ -70,6 +71,7 @@ function Home() {
 
   return (
     <div className="shell">
+      <PdfViewerHost />
       <header className="top">
         <span className="brand">ClinicEMR</span>
         <span className="spacer" />

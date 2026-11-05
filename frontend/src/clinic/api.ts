@@ -1,4 +1,5 @@
 import type { Problem } from './types';
+import { showPdf } from '../shared/pdf/PdfViewer';
 
 /** An error response from the API, carrying the server's problem details (code, fields, candidates…). */
 export class ApiError extends Error {
@@ -72,28 +73,22 @@ export const api = {
 };
 
 /**
- * Opens a PDF in a new tab. {@code linkPath} is an endpoint that makes the PDF and returns a short-lived link to it;
- * a real address works on phones, where a PDF held in page memory can't be shown. The tab is opened first, inside
- * the tap, so pop-up blockers allow it; if one blocks it anyway, this tab goes to the PDF instead.
+ * Shows a prescription inside the app first (Print, Download and Share are on that screen), so phones never jump
+ * straight to a download. {@code linkPath} is an endpoint that makes the PDF and returns a short-lived link to it.
  */
-export async function openPdf(linkPath: string) {
-  const tab = window.open('', '_blank');
-  try {
-    const { url } = await api.post<{ url: string }>(linkPath);
-    if (tab) {
-      tab.location.href = url;
-    } else {
-      window.location.href = url;
-    }
-  } catch (e) {
-    tab?.close();
-    // Some browsers block pop-up messages; the prescription simply doesn't open there
-    try {
-      window.alert(e instanceof ApiError ? e.message : "The prescription couldn't be opened. Try again.");
-    } catch {
-      console.warn("The prescription couldn't be opened.", e);
-    }
-  }
+export function openPdf(linkPath: string, title = 'Prescription') {
+  const paper = /paper=(A4|A5)/.exec(linkPath)?.[1];
+  showPdf({
+    title: paper ? `${title} (${paper})` : title,
+    filename: `${title.toLowerCase().replace(/\s+/g, '-')}${paper ? `-${paper}` : ''}.pdf`,
+    getUrls: async () => {
+      try {
+        return [(await api.post<{ url: string }>(linkPath)).url];
+      } catch (e) {
+        throw new Error(e instanceof ApiError ? e.message : "The prescription couldn't be opened.");
+      }
+    },
+  });
 }
 
 /**

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError, openUrl, putFile } from '../api';
+import { api, ApiError, putFile } from '../api';
 import type { PatientDocument, UploadStart } from '../types';
 import { date } from '../format';
 import { DateField } from '../../shared/DateField';
+import { showPdf } from '../../shared/pdf/PdfViewer';
 
 const DOC_TYPES: Record<string, string> = {
   PRESCRIPTION: 'Prescription',
@@ -35,14 +36,21 @@ export function DocumentsTab({ profileId }: { profileId: string }) {
 
   useEffect(() => { setDocs(undefined); load(); }, [load]);
 
-  async function open(id: string) {
+  // Shown inside the app (every page), with Print, Download and Share there, instead of downloading it
+  function open(d: PatientDocument) {
     setError(undefined);
-    try {
-      const d = await api.get<{ pages: { url: string }[] }>(`/patient/profiles/${profileId}/documents/${id}`);
-      d.pages.forEach((p) => openUrl(p.url));
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not open the document.');
-    }
+    const title = d.title || DOC_TYPES[d.docType] || 'Document';
+    showPdf({
+      title,
+      filename: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'document',
+      getUrls: async () => {
+        try {
+          return (await api.get<{ pages: { url: string }[] }>(`/patient/profiles/${profileId}/documents/${d.id}`)).pages.map((p) => p.url);
+        } catch (e) {
+          throw new Error(e instanceof ApiError ? e.message : 'Could not open the document.');
+        }
+      },
+    });
   }
 
   async function remove(id: string) {
@@ -79,7 +87,7 @@ export function DocumentsTab({ profileId }: { profileId: string }) {
                 {DOC_TYPES[d.docType]}{d.recordDate ? ` · ${date(d.recordDate)}` : ''} · {d.pages} page{d.pages === 1 ? '' : 's'}
               </div>
               <div className="row">
-                <button onClick={() => open(d.id)}>Open</button>
+                <button onClick={() => open(d)}>Open</button>
                 {d.canDelete && (confirmDelete === d.id ? (
                   <>
                     <button className="danger" onClick={() => remove(d.id)}>Yes, delete</button>

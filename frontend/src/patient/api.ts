@@ -1,4 +1,5 @@
 import type { Problem } from './types';
+import { showPdf } from '../shared/pdf/PdfViewer';
 
 export class ApiError extends Error {
   constructor(public readonly problem: Problem) {
@@ -59,19 +60,21 @@ export const api = {
 };
 
 /**
- * Opens a PDF. {@code linkPath} makes it and returns a short-lived link; phone browsers can open a real address but
- * not a PDF held in page memory. The tab is opened inside the tap so the browser allows it.
+ * Shows a PDF inside the app first, with Print, Download and Share on that screen (phones would otherwise just
+ * download it). {@code linkPath} makes the PDF and returns a short-lived link to it.
  */
-export async function openAuthed(linkPath: string) {
-  const tab = window.open('', '_blank');
-  try {
-    const { url } = await api.post<{ url: string }>(linkPath);
-    if (tab) tab.location.href = url;
-    else window.location.href = url;
-  } catch (e) {
-    tab?.close();
-    throw e;
-  }
+export function openAuthed(linkPath: string, title = 'Prescription') {
+  showPdf({
+    title,
+    filename: `${title.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+    getUrls: async () => {
+      try {
+        return [(await api.post<{ url: string }>(linkPath)).url];
+      } catch (e) {
+        throw new Error(e instanceof ApiError ? e.message : "The prescription couldn't be opened.");
+      }
+    },
+  });
 }
 
 /**
