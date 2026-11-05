@@ -9,16 +9,19 @@ import { SessionProvider as PatientSession } from './patient/session';
 import clinicCss from './clinic/styles.css?inline';
 import patientCss from './patient/styles.css?inline';
 import { registerServiceWorker } from './shared/InstallApp';
+import { VoiceInput } from './shared/VoiceInput';
 
 registerServiceWorker();
 
 /**
  * One app for everyone. Patients and families use /my; clinic staff use everything else. Each side keeps its own
- * sign-in and its own stylesheet, which is only on the page while that side is shown.
+ * sign-in and its own stylesheet, which is only on the page while that side is shown. Every text box gets voice
+ * typing.
  */
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <VoiceInput />
       <Routes>
         <Route path="/my/*" element={
           <PatientSession>

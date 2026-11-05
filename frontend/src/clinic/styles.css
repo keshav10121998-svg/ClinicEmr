@@ -421,3 +421,28 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .admin-visit:last-child { border-bottom: 0; }
 .admin-visit.removed { opacity: .65; }
 button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+
+/* ----- earnings */
+.scope-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.scope-switch button { border: 0; border-radius: 0; min-height: 40px; padding: 0 14px; background: none; color: var(--muted); font-weight: 600; }
+.scope-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.earn-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.earn-card { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.earn-card.main { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.earn-total { font-size: 28px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.earn-split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.earn-split > * { display: grid; gap: 1px; padding: 6px 8px; border-radius: 8px; text-align: left; font-variant-numeric: tabular-nums; min-width: 0; }
+.earn-split span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.earn-split b { font-size: 16px; overflow-wrap: anywhere; }
+.earn-paid { background: #e7f4ee; color: #17603f; }
+.earn-balance { background: #fdf1e3; color: #8a4b08; border: 1px solid transparent; min-height: 0; cursor: pointer; font: inherit; }
+.earn-balance:hover, .earn-balance[aria-pressed="true"] { border-color: #d9892b; }
+.earn-balance:disabled { background: #f1f3f2; color: var(--muted); cursor: default; border-color: transparent; }
+.earn-balance small { font-size: 11px; font-weight: 600; text-decoration: underline; }
+@media (max-width: 860px) {
+  .earn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 400px) {
+  .earn-total { font-size: 22px; }
+  .earn-split { grid-template-columns: 1fr; }
+}

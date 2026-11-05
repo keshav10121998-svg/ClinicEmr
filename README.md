@@ -14,6 +14,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
+| Earnings | `GET /api/v1/clinic/earnings?mine=` (today, this month, this year, all time), `GET …/earnings/owing?range=today\|this_month\|this_year\|all&mine=` |
 | Payment proofs | Patient: `GET /api/v1/patient/profiles/{id}/balances`, `POST …/payment-requests` (multipart: clinicId, amount, note, proof), `GET …/payment-requests`. Clinic: `GET /api/v1/clinic/payment-requests?status=&patientId=`, `POST …/{id}/approve`, `POST …/{id}/reject` (reason) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
 | Visits | `POST /api/v1/clinic/encounters` (start, client-generated id), `PUT …/{id}` (autosave with `baseVersion`), `POST …/{id}/sign`, `POST …/{id}/amend`, `POST …/{id}/cancel`, `GET …/{id}`, `GET …/{id}/integrity`, `GET /api/v1/clinic/patients/{id}/encounters` |
@@ -69,10 +70,22 @@ layout. Clinic screens so far:
   app: photos at full width, PDF pages drawn inside the page with pdf.js (all pages of a document), with **Open in
   new tab** as a fallback. Chrome on Android has no PDF viewer and would download a PDF straight away, so nothing is
   shown in a frame.
+- **Voice typing everywhere:** every text box (search, patient registration, visit notes, medicines, the patient
+  app…) shows a mic at its right end while it has focus. Tap it and speak: the words are added to what is already
+  there, phone and number boxes get just the digits, and long boxes keep listening until tapped again. English
+  (India) or Hindi, switched from the "Listening…" bubble and remembered. It uses the browser's own speech
+  recognition (Chrome sends the audio to Google to turn it into text), needs the internet, and is hidden in browsers
+  without it. Passwords, e-mail and date boxes have no mic; add `data-no-mic` to leave out others.
 - **Print shows the prescription first:** **Print** opens the prescription full screen inside the app (pdf.js,
   loaded only when first needed), with **Print**, **Download** and, where the phone supports it, **Share** underneath.
   Print sends just the pages at the PDF's own paper size (A5 or A4). The patient app opens prescriptions and
   documents (PDFs and photos) the same way.
+- **Earnings:** a tab with four cards (today, this month, this year, all time), each showing the total charged for
+  the visits in that period, how much of it was paid and the balance still owed (total = paid + balance), plus the
+  money actually received in the period when that differs (old balances paid now). Tap a balance to list the
+  patients who still owe for that period, the longest overdue first, with Call and Open. Doctors see their own
+  visits; admins and front desk see the whole clinic, and those who are also doctors can switch to **My visits**.
+  Nurses don't see it. The sample patient, cancelled visits and removed patients don't count.
 - **Overview:** how many patients came today (large tile), yesterday, in the last 7 days, this year and in total, with
   the visit count when someone came more than once. Tap a tile to see who came: name, age, patient ID, doctor,
   time, total visits so far, and the diagnosis for doctors and nurses. Tap a name to open the patient. Unfinished

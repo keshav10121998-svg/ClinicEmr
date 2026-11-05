@@ -397,3 +397,44 @@ export interface PaymentRequest {
   proofUrl?: string;
   proofType?: string;
 }
+
+export type EarningsRange = 'TODAY' | 'THIS_MONTH' | 'THIS_YEAR' | 'ALL';
+
+/** For visits in the period: total = paid + balance. {@code collected}: money received in the period (old balances too). */
+export interface EarningsPeriod {
+  range: EarningsRange;
+  visits: number;
+  total: number;
+  paid: number;
+  balance: number;
+  collected: number;
+}
+
+export interface Earnings {
+  mine: boolean;
+  canSeeClinic: boolean;
+  periods: EarningsPeriod[];
+}
+
+export interface Owing {
+  patientId: string;
+  name: string;
+  mrn?: string;
+  gender: Patient['gender'];
+  ageYears?: number;
+  phone?: string;
+  balance: number;
+  visits: number;
+  dueDate: string;
+  overdueDays: number;
+  lastVisitAt: string;
+}
+
+export interface OwingList {
+  range: EarningsRange;
+  mine: boolean;
+  patients: number;
+  balance: number;
+  truncated: boolean;
+  items: Owing[];
+}
