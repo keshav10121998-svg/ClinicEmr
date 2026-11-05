@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { App as ClinicApp } from './clinic/App';
 import { SessionProvider as ClinicSession } from './clinic/session';
 import { App as PatientApp } from './patient/App';
+import { App as AdminApp } from './admin/App';
 import { SessionProvider as PatientSession } from './patient/session';
 import clinicCss from './clinic/styles.css?inline';
 import patientCss from './patient/styles.css?inline';
@@ -24,6 +25,12 @@ createRoot(document.getElementById('root')!).render(
             <style>{patientCss}</style>
             <PatientApp />
           </PatientSession>
+        } />
+        <Route path="/admin/*" element={
+          <>
+            <style>{clinicCss}</style>
+            <AdminApp />
+          </>
         } />
         <Route path="*" element={
           <ClinicSession>

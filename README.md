@@ -118,6 +118,28 @@ The session token is kept in `sessionStorage`, so closing the tab signs out on s
 **Trying the sharing flow locally:** with no SMS provider configured, codes are written to the backend log
 (`backend/target/dev-server.log` when started as in the run instructions, look for `[DEV SMS`).
 
+### Super admin (`/admin`)
+
+The platform owner's own sign-in, separate from clinic staff and patients.
+
+- **Created on first start** from `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` (12+ characters; see DEPLOY.md).
+  Once a super admin exists the settings are ignored. The password is never in the code. Five wrong passwords lock
+  the sign-in for 15 minutes; a sign-in lasts 12 hours.
+- **Totals:** clinics, doctors (and all staff accounts), patients, patient app users, and visits today / last 7 days /
+  in total, with new clinics and patients this week. Practice (sample) patients are never counted.
+- **Doctors and staff:** everyone who signs in to a clinic, with their clinics, visits, patients and last visit;
+  search, "doctors only" and "show removed". A doctor's page lists their clinics and their latest 300 visits.
+- **Remove a visit** (with an optional reason) or **remove a doctor** (optionally with all their visits). A clinic left
+  with nobody in it is removed too, with the patients registered only there. Removed doctors can't sign in, and
+  their email and mobile number can be registered again. Nothing is erased: rows keep when and why they were removed,
+  the app hides them, and every removal is in the audit log.
+- **Permanently delete** (second step, only for something already removed): erases a visit with its notes,
+  medicines, payments and attached files; or a doctor's account with their removed clinics and everything in them
+  (patients registered only there, visits, payments, documents and stored files). A doctor is typed-confirmed
+  (DELETE). It is refused while the doctor still has visits at a clinic in use. Files are deleted from storage only
+  after the database change commits; the audit log keeps a note.
+- Local dev server: `admin@example.com` / `change-me-admin-please` (only when `SUPER_ADMIN_EMAIL` isn't set).
+
 ### Web app: patient screens (`/my`)
 
 Phone-first screens for patients and families, in the same app under `/my`:

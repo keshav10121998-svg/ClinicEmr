@@ -404,3 +404,12 @@ textarea.listening, input.listening { border-color: var(--danger); outline-color
 .start-steps li span { color: var(--muted); }
 .sample-chip { margin-left: 6px; vertical-align: 1px; background: var(--warn-bg); border-color: transparent; color: var(--warn); font-weight: 600; }
 .sample-note { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+/* Super admin (/admin) */
+.admin-chip { margin-left: 6px; vertical-align: 1px; }
+.admin-danger { border-color: var(--danger); }
+.admin-danger ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.admin-visit { display: grid; gap: 3px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.admin-visit:last-child { border-bottom: 0; }
+.admin-visit.removed { opacity: .65; }
+button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }

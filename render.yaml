@@ -45,3 +45,7 @@ services:
         value: proxy
       - key: STORAGE_DOWNLOAD_MODE
         value: proxy
+      - key: SUPER_ADMIN_EMAIL     # your own sign-in for /admin, created the first time the app starts
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD  # at least 12 characters
+        sync: false

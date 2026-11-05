@@ -120,7 +120,7 @@ public class ClinicService {
                   FROM clinic_member m
                   JOIN staff_user s ON s.id = m.staff_id
                   LEFT JOIN doctor d ON d.staff_id = s.id
-                 WHERE m.clinic_id = :clinicId
+                 WHERE m.clinic_id = :clinicId AND s.deleted_at IS NULL
                  ORDER BY s.name, m.role
                 """)
                 .param("clinicId", ctx.clinicId())

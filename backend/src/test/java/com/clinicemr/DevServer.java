@@ -37,6 +37,11 @@ public class DevServer {
         if (System.getenv("STORAGE_TYPE") == null) {
             System.setProperty("app.storage.type", "local");
         }
+        // A local-only super admin for trying /admin (production takes SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD)
+        if (System.getenv("SUPER_ADMIN_EMAIL") == null) {
+            System.setProperty("app.super-admin.email", "admin@example.com");
+            System.setProperty("app.super-admin.password", "change-me-admin-please");
+        }
         SpringApplication.run(ClinicEmrApplication.class, args);
     }
 }

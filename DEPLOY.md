@@ -82,7 +82,19 @@ after a Render restart.
 
 Render's free plan includes 750 hours a month, enough for one app awake all the time.
 
-## 5. First use
+## 5. Super admin (you)
+
+Your own sign-in at `https://<your-app>.onrender.com/admin` shows every clinic, doctor, patient count and visit, and
+lets you remove test doctors and visits. In Render, under **Environment**, add:
+
+- `SUPER_ADMIN_EMAIL`: your email
+- `SUPER_ADMIN_PASSWORD`: a strong password, at least 12 characters (never put it in the code or README)
+
+Save; Render restarts the app, and the logs show `Super admin created for …`. This happens **only the first time**:
+once the super admin exists, these settings are ignored (you can leave them or delete them). Five wrong passwords lock
+the sign-in for 15 minutes.
+
+## 6. First use
 
 1. Open the app and choose **Set up your clinic**. Use a **real, strong password**, not the test one from the README.
 2. Register a test patient, record a visit, attach a photo, print a prescription, and use **Patient app sign-in code** on your phone.

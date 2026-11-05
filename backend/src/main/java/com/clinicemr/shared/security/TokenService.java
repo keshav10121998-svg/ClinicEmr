@@ -66,6 +66,27 @@ public class TokenService {
         return new IssuedToken(token, expiresAt);
     }
 
+    public static final String ADMIN_ISSUER = "clinic-emr/admin";
+
+    /** How long the super admin stays signed in: shorter than staff, since this sign-in can see every clinic. */
+    public static final java.time.Duration ADMIN_SESSION = java.time.Duration.ofHours(12);
+
+    public IssuedToken issueAdminToken(long adminId, String email) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(ADMIN_SESSION);
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(ADMIN_ISSUER)
+                .subject(String.valueOf(adminId))
+                .issuedAt(now)
+                .expiresAt(expiresAt)
+                .claim("email", email)
+                .claim("typ", "admin")
+                .build();
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        return new IssuedToken(token, expiresAt);
+    }
+
     public record IssuedToken(String value, Instant expiresAt) {
     }
 }
