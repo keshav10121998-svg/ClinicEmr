@@ -37,6 +37,10 @@ public class DevServer {
         if (System.getenv("STORAGE_TYPE") == null) {
             System.setProperty("app.storage.type", "local");
         }
+        // Clinics that sign up locally can work at once (production starts them switched off until the super admin acts)
+        if (System.getenv("NEW_CLINIC_DAYS") == null) {
+            System.setProperty("app.subscription.new-clinic-days", "3650");
+        }
         // A local-only super admin for trying /admin (production takes SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD)
         if (System.getenv("SUPER_ADMIN_EMAIL") == null) {
             System.setProperty("app.super-admin.email", "admin@example.com");

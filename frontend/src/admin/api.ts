@@ -125,7 +125,7 @@ export interface PurgeResult {
   files: number;
 }
 
-/** A clinic's plan and who to ask for the payment. */
+/** A clinic's access (switched on until a date, or not) and who to contact about it. */
 export interface ClinicPlan {
   plan: Plan;
   city?: string;
@@ -137,9 +137,10 @@ export interface ClinicPlan {
 
 export interface BillingOverview {
   clinics: number;
-  freeMonth: number;
-  paid: number;
-  due: number;
+  active: number;
+  expiring: number;
+  expired: number;
+  notEnabled: number;
   monthlyIncome: number;
   items: ClinicPlan[];
 }
@@ -148,6 +149,7 @@ export interface SubscriptionPayment {
   id: number;
   amount: number;
   months: number;
+  monthlyPrice: number;
   coversFrom: string;
   coversUntil: string;
   note?: string;

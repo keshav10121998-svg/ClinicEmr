@@ -14,7 +14,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
-| Plan | Clinic admin: `GET /api/v1/clinic/plan`. Super admin: `GET /api/v1/admin/billing`, `GET/POST /api/v1/admin/billing/clinics/{id}/payments` (amount, months, note) |
+| Plan | Any clinic staff: `GET /api/v1/clinic/plan`. Super admin: `GET /api/v1/admin/billing`, `GET …/clinics/{id}/payments`, `POST …/clinics/{id}/grant` (months, free, monthlyPrice, amount, note), `POST …/clinics/{id}/switch-off` |
 | Earnings | `GET /api/v1/clinic/earnings?mine=` (today, this month, this year, all time), `GET …/earnings/owing?range=today\|this_month\|this_year\|all&mine=` |
 | Payment proofs | Patient: `GET /api/v1/patient/profiles/{id}/balances`, `POST …/payment-requests` (multipart: clinicId, amount, note, proof), `GET …/payment-requests`. Clinic: `GET /api/v1/clinic/payment-requests?status=&patientId=`, `POST …/{id}/approve`, `POST …/{id}/reject` (reason) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
@@ -167,29 +167,27 @@ The platform owner's own sign-in, separate from clinic staff and patients.
 
 ### Plans and billing
 
-Every clinic has a plan, worked out from the day it registered (`clinic.billing_started_on`) and its current staff:
+There is no fixed price list. You agree the terms with each clinic in person, then switch it on from **Billing** in
+`/admin`: a number of months, **Free** or at the agreed monthly price, with the money received. Clinics pay you
+outside the app (UPI); the app only keeps the record, in `subscription_payment`. The clinic's end date is
+`clinic.paid_until` (the last day it can make changes) and its agreed price `clinic.monthly_price` (0 is free).
 
-| Month | Price a month |
-|---|---|
-| 1 | Free |
-| 2 to 7 | ₹50 |
-| 8 onwards | ₹100 |
-
-From month 2, every active staff member except the first (the owner) adds ₹20 a month; switching someone off stops
-the charge, and nothing is charged for staff in the free month. A "month" runs from the start date to the same day
-next month. The rules are in `SubscriptionPlan`; `SubscriptionService` applies them, so there is no scheduled job.
-Existing clinics start their free month on the day the migration ran.
-
-- **Collected by hand:** clinics pay you outside the app (UPI). On **Billing** in `/admin` you see every clinic as
-  free month, paid or payment due (those first), what it owes next, and who to call. **Record payment** takes the
-  months paid for and the amount received (filled in from the price) and moves `paid_until` forward: from the end of
-  what was already paid for, or from today for a clinic that was behind. The payments are kept in
-  `subscription_payment`.
-- **Clinic admins** see **Your plan** at the top of Staff (this month's price and what it is made of, paid-until date,
-  and the next price change) and a heads-up on Overview when payment is due, the plan ends within a week, or the
-  price changes within 30 days.
-- **Nothing is blocked yet** when a clinic is behind: the screens just say so. Read-only mode after a grace period
-  can be added once you want it.
+- **Switch on / add months:** months are added after the current end date if the clinic is still on, or from today if
+  it ended or was never switched on. **Switch off** ends access today.
+- **Read-only when the time is over:** a clinic that was never switched on, or whose end date has passed, can still
+  *view* everything (every GET, and making a link to view or print a prescription), but every change is refused with
+  HTTP 402 (`SUBSCRIPTION_ENDED`): new visits, new patients, saving or signing a visit, payments, staff, and so on. The
+  check is in `ClinicContextResolver`, using the same query that checks the clinic and role, so it adds no extra
+  database trip. The patient app is not affected.
+- **New clinics start switched off.** A clinic that signs up on its own can look around but not add anything until you
+  switch it on. To give new sign-ups some days on their own, set `NEW_CLINIC_DAYS` (for example `7`). Local dev and the
+  tests use 3650.
+- **Clinics that existed when this went live** (migration V17) get 30 days, so nobody is locked out on that day.
+- **What clinic staff see:** a red banner on every screen while the clinic is read-only, an amber one for the last
+  7 days before it ends, and admins get **Your plan** on the Staff page (price and end date). The banner is read again
+  when the app comes back to the front, so a renewal shows up without signing out.
+- **Billing page:** every clinic with its status (not switched on, ended, ending soon, active), end date, agreed price
+  and who to call, those needing attention first, plus the history of each clinic's payments.
 
 ### Web app: patient screens (`/my`)
 

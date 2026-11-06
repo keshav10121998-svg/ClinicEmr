@@ -439,31 +439,18 @@ export interface OwingList {
   items: Owing[];
 }
 
-export type PlanStage = 'FREE_MONTH' | 'LAUNCH' | 'STANDARD';
-export type PlanStatus = 'FREE_MONTH' | 'PAID' | 'DUE';
+export type PlanStatus = 'ACTIVE' | 'EXPIRING' | 'EXPIRED' | 'NOT_ENABLED';
 
-export interface PriceChange {
-  on: string;
-  basePrice: number;
-  daysAway: number;
-}
-
-/** A clinic's plan. {@code coveredUntil} is the first day not yet paid for (the free month counts as paid). */
+/**
+ * Whether the clinic is switched on. {@code accessUntil} is the last day it can make changes; after it, or if it was
+ * never switched on, the clinic is read-only ({@code blocked}). {@code monthlyPrice} (0 is free) is for admins only.
+ */
 export interface Plan {
   clinicId: number;
   clinicName: string;
-  startedOn: string;
-  monthNumber: number;
-  stage: PlanStage;
-  basePrice: number;
-  billableStaff: number;
-  staffCharge: number;
-  total: number;
-  freeUntil: string;
-  paidUntil?: string;
-  coveredUntil: string;
   status: PlanStatus;
-  daysLeft: number;
-  nextAmount: number;
-  nextChange?: PriceChange;
+  blocked: boolean;
+  accessUntil?: string;
+  daysLeft?: number;
+  monthlyPrice?: number;
 }

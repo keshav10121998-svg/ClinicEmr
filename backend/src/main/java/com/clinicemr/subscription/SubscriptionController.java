@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** A clinic's own plan: this month's price, what it includes, and when the price changes. Clinic admins only. */
+/** Whether the clinic is switched on and until when, for every member of staff. The price is shown to admins only. */
 @RestController
 @RequestMapping("/api/v1/clinic/plan")
 public class SubscriptionController {
@@ -19,7 +19,6 @@ public class SubscriptionController {
 
     @GetMapping
     public SubscriptionService.Plan plan(ClinicContext ctx) {
-        ctx.require(ClinicRole.ADMIN);
-        return subscriptions.plan(ctx.clinicId());
+        return subscriptions.plan(ctx.clinicId(), ctx.has(ClinicRole.ADMIN));
     }
 }

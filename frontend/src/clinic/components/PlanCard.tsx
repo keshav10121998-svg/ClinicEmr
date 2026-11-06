@@ -2,26 +2,61 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { date } from '../format';
 import { rupees } from '../payments';
-import { useSession } from '../session';
 import type { Plan } from '../types';
 
-export const STAFF_PRICE = 20;
-
-const STAGE: Record<Plan['stage'], string> = { FREE_MONTH: 'Free month', LAUNCH: 'Launch price', STANDARD: 'Standard price' };
-
-/** The clinic's plan, for clinic admins only (null for everyone else, and while loading or if it can't be loaded). */
+/**
+ * The clinic's access: whether the super admin has switched it on and until when. Read again when the app is opened
+ * or comes back to the front, so a renewal shows up without signing out.
+ */
 export function usePlan() {
-  const { has } = useSession();
-  const admin = has('ADMIN');
   const [plan, setPlan] = useState<Plan | null>();
   useEffect(() => {
-    if (!admin) return;
-    api.get<Plan>('/clinic/plan').then(setPlan).catch(() => setPlan(null));
-  }, [admin]);
-  return admin ? plan ?? null : null;
+    const load = () => api.get<Plan>('/clinic/plan').then(setPlan).catch(() => setPlan(null));
+    load();
+    const onShow = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, []);
+  return plan ?? null;
 }
 
-/** What the clinic pays this month, what it is made of, how long it is paid for, and when the price changes. */
+/**
+ * At the top of every screen while the clinic is read-only (not switched on, or its time has ended), and for the last
+ * week before it ends. Shows nothing the rest of the time.
+ */
+export function PlanBanner() {
+  const plan = usePlan();
+  if (!plan) return null;
+  if (plan.status === 'NOT_ENABLED') {
+    return (
+      <div className="plan-banner blocked" role="alert">
+        <b>Not switched on yet.</b> You can look at records, but you can't add or change anything. Please contact ClinicEMR to start.
+      </div>
+    );
+  }
+  if (plan.status === 'EXPIRED') {
+    return (
+      <div className="plan-banner blocked" role="alert">
+        <b>Your plan ended on {date(plan.accessUntil)}.</b> You can still view patients and prescriptions, but new visits and
+        changes are blocked until it is renewed. Please contact ClinicEMR to renew.
+      </div>
+    );
+  }
+  if (plan.status === 'EXPIRING') {
+    const days = plan.daysLeft ?? 0;
+    return (
+      <div className="plan-banner soon" role="status">
+        Your plan ends {days === 0 ? 'today' : `in ${days} ${days === 1 ? 'day' : 'days'}`} (on {date(plan.accessUntil)}). After that new visits
+        are blocked. Please contact ClinicEMR to renew.
+      </div>
+    );
+  }
+  return null;
+}
+
+const STATUS: Record<Plan['status'], string> = { ACTIVE: 'Active', EXPIRING: 'Ending soon', EXPIRED: 'Ended', NOT_ENABLED: 'Not switched on' };
+
+/** What was agreed with the clinic, for its admin: the monthly price (or free) and the day access ends. */
 export function PlanCard() {
   const plan = usePlan();
   if (!plan) return null;
@@ -29,59 +64,16 @@ export function PlanCard() {
     <div className="card plan-card">
       <div className="between">
         <h2>Your plan</h2>
-        <span className={`chip ${plan.status === 'DUE' ? 'allergy' : 'ok'}`}>{statusText(plan)}</span>
-      </div>
-      <div className="plan-price">
-        <span className="plan-amount">{rupees(plan.total)}</span>
-        <span className="muted">a month · {STAGE[plan.stage]}</span>
+        <span className={`chip ${plan.blocked ? 'allergy' : 'ok'}`}>{STATUS[plan.status]}</span>
       </div>
       <ul className="plan-lines">
-        <li><span>{plan.stage === 'FREE_MONTH' ? 'First month' : 'Clinic'}</span><b>{rupees(plan.basePrice)}</b></li>
-        <li>
-          <span>{plan.billableStaff} {plan.billableStaff === 1 ? 'staff member' : 'staff members'} × {rupees(STAFF_PRICE)}
-            {plan.stage === 'FREE_MONTH' && plan.billableStaff > 0 ? ' (free this month)' : ''}</span>
-          <b>{rupees(plan.staffCharge)}</b>
-        </li>
+        <li><span>Price</span><b>{plan.monthlyPrice === undefined ? '' : plan.monthlyPrice === 0 ? 'Free' : `${rupees(plan.monthlyPrice)} a month`}</b></li>
+        <li><span>{plan.blocked ? 'Ended on' : 'Valid until'}</span><b>{plan.accessUntil ? date(plan.accessUntil) : 'Not switched on'}</b></li>
       </ul>
       <p className="small muted" style={{ margin: 0 }}>
-        The first person (the owner) is included. Each other active staff member adds {rupees(STAFF_PRICE)} a month; switching someone off stops it.
+        The terms are agreed with ClinicEMR in person. When the plan ends you can still view records, but new visits and
+        changes are blocked until it is renewed.
       </p>
-      {plan.nextChange && (
-        <p className="plan-change">
-          On <b>{date(plan.nextChange.on)}</b> ({plan.nextChange.daysAway} {plan.nextChange.daysAway === 1 ? 'day' : 'days'} from now) the price
-          becomes <b>{rupees(plan.nextChange.basePrice)}</b> a month{plan.billableStaff > 0 ? ` plus ${rupees(plan.billableStaff * STAFF_PRICE)} for staff` : ''}.
-        </p>
-      )}
-      <p className="small muted" style={{ margin: 0 }}>
-        {plan.status === 'DUE'
-          ? `Your plan ran out on ${date(plan.coveredUntil)}. Pay ${rupees(plan.nextAmount)} for the next month to keep it paid.`
-          : `${plan.status === 'FREE_MONTH' ? 'Free until' : 'Paid until'} ${date(plan.coveredUntil)}. After that: ${rupees(plan.nextAmount)} a month.`}
-        {' '}Nothing stops working if a payment is late.
-      </p>
-    </div>
-  );
-}
-
-function statusText(p: Plan) {
-  return p.status === 'FREE_MONTH' ? `Free · ${p.daysLeft} ${p.daysLeft === 1 ? 'day' : 'days'} left`
-    : p.status === 'PAID' ? 'Paid' : 'Payment due';
-}
-
-/**
- * A short heads-up on the Overview for clinic admins: payment due, the plan ending within a week, or a price change
- * within 30 days. Shows nothing the rest of the time.
- */
-export function PlanNotice() {
-  const plan = usePlan();
-  if (!plan) return null;
-  const change = plan.nextChange && plan.nextChange.daysAway <= 30 ? plan.nextChange : undefined;
-  const ending = plan.status !== 'DUE' && plan.daysLeft <= 7;
-  if (plan.status !== 'DUE' && !ending && !change) return null;
-  return (
-    <div className={`alert ${plan.status === 'DUE' ? 'error' : 'info'}`}>
-      {plan.status === 'DUE' && <>Your plan ran out on {date(plan.coveredUntil)}. Pay {rupees(plan.nextAmount)} to continue. </>}
-      {ending && <>Your {plan.status === 'FREE_MONTH' ? 'free month' : 'plan'} ends on {date(plan.coveredUntil)}; the next month is {rupees(plan.nextAmount)}. </>}
-      {change && <>From {date(change.on)} the price is {rupees(change.basePrice)} a month{plan.billableStaff > 0 ? ' plus staff' : ''}. </>}
     </div>
   );
 }

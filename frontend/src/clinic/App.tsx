@@ -12,6 +12,7 @@ import { StaffPage } from './pages/StaffPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { EarningsPage } from './pages/EarningsPage';
 import { PdfViewerHost } from '../shared/pdf/PdfViewer';
+import { PlanBanner } from './components/PlanCard';
 
 export function App() {
   const { session, clinic } = useSession();
@@ -45,6 +46,7 @@ function ClinicShell() {
       <TopBar due={due} />
       <BottomTabs due={due} />
       <main className="page">
+        <PlanBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/patients" replace />} />
           <Route path="/patients" element={<PatientsPage />} />

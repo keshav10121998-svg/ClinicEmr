@@ -23,10 +23,15 @@ public class ClinicService {
     private final PasswordEncoder passwords;
     private final AuditService audit;
 
-    public ClinicService(JdbcClient jdbc, PasswordEncoder passwords, AuditService audit) {
+    /** Days a clinic that signs up on its own can use the app before the super admin switches it on (0: none). */
+    private final int newClinicDays;
+
+    public ClinicService(JdbcClient jdbc, PasswordEncoder passwords, AuditService audit,
+                         @org.springframework.beans.factory.annotation.Value("${app.subscription.new-clinic-days:${NEW_CLINIC_DAYS:0}}") int newClinicDays) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.audit = audit;
+        this.newClinicDays = Math.max(0, newClinicDays);
     }
 
     public record ClinicView(long id, String name, String address, String city, String state, String pincode,
@@ -44,10 +49,11 @@ public class ClinicService {
     @Transactional
     public long registerClinic(ClinicDtos.RegisterClinicRequest req) {
         long clinicId = jdbc.sql("""
-                INSERT INTO clinic (name, address, city, state, pincode, phone)
-                VALUES (:name, :address, :city, :state, :pincode, :phone)
+                INSERT INTO clinic (name, address, city, state, pincode, phone, paid_until)
+                VALUES (:name, :address, :city, :state, :pincode, :phone, :paidUntil)
                 RETURNING id
                 """)
+                .param("paidUntil", newClinicDays > 0 ? com.clinicemr.shared.security.ClinicAccess.today().plusDays(newClinicDays) : null)
                 .param("name", req.clinic().name().trim())
                 .param("address", req.clinic().address())
                 .param("city", req.clinic().city())

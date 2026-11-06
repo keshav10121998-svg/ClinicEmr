@@ -97,6 +97,11 @@ the sign-in for 15 minutes.
 ## 6. First use
 
 1. Open the app and choose **Set up your clinic**. Use a **real, strong password**, not the test one from the README.
+   A new clinic starts **switched off** (it can only look, not add anything) until you switch it on: open `/admin`,
+   tap **Billing**, then **Switch on** for that clinic and choose the months and free or paid. This is how every new
+   clinic is started, after you have agreed the terms with it. To let new sign-ups work for some days on their own,
+   add `NEW_CLINIC_DAYS` (for example `7`) in Render. Clinics that already exist when this version goes live get
+   30 days automatically.
 2. Register a test patient, record a visit, attach a photo, print a prescription, and use **Patient app sign-in code** on your phone.
 3. Patients use `https://<your-app>.onrender.com/my`.
 

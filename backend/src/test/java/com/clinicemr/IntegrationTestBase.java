@@ -49,6 +49,8 @@ public abstract class IntegrationTestBase {
         registry.add("spring.datasource.url", () -> postgres.getJdbcUrl("postgres", "postgres"));
         registry.add("spring.datasource.username", () -> "postgres");
         registry.add("spring.datasource.password", () -> "postgres");
+        // Clinics that sign up in tests can work at once; production starts them switched off until the super admin acts
+        registry.add("app.subscription.new-clinic-days", () -> "3650");
     }
 
     @Autowired
