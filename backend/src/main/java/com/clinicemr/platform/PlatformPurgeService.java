@@ -157,6 +157,7 @@ public class PlatformPurgeService {
         jdbc.sql("UPDATE otp_challenge SET clinic_id = NULL WHERE clinic_id = :c").param("c", clinicId).update();
         jdbc.sql("DELETE FROM patient_identifier WHERE clinic_id = :c").param("c", clinicId).update();
         jdbc.sql("DELETE FROM clinic_member WHERE clinic_id = :c").param("c", clinicId).update();
+        jdbc.sql("DELETE FROM subscription_payment WHERE clinic_id = :c").param("c", clinicId).update();
         jdbc.sql("DELETE FROM clinic WHERE id = :c").param("c", clinicId).update();
         t.clinics++;
         for (long profileId : profiles) {

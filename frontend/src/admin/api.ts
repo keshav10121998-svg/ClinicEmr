@@ -1,5 +1,5 @@
 import { ApiError } from '../clinic/api';
-import type { Problem } from '../clinic/types';
+import type { Plan, Problem } from '../clinic/types';
 
 export { ApiError };
 
@@ -123,4 +123,33 @@ export interface PurgeResult {
   clinics: number;
   patients: number;
   files: number;
+}
+
+/** A clinic's plan and who to ask for the payment. */
+export interface ClinicPlan {
+  plan: Plan;
+  city?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
+  payments: number;
+}
+
+export interface BillingOverview {
+  clinics: number;
+  freeMonth: number;
+  paid: number;
+  due: number;
+  monthlyIncome: number;
+  items: ClinicPlan[];
+}
+
+export interface SubscriptionPayment {
+  id: number;
+  amount: number;
+  months: number;
+  coversFrom: string;
+  coversUntil: string;
+  note?: string;
+  recordedAt: string;
 }

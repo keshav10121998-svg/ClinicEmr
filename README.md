@@ -14,6 +14,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
+| Plan | Clinic admin: `GET /api/v1/clinic/plan`. Super admin: `GET /api/v1/admin/billing`, `GET/POST /api/v1/admin/billing/clinics/{id}/payments` (amount, months, note) |
 | Earnings | `GET /api/v1/clinic/earnings?mine=` (today, this month, this year, all time), `GET …/earnings/owing?range=today\|this_month\|this_year\|all&mine=` |
 | Payment proofs | Patient: `GET /api/v1/patient/profiles/{id}/balances`, `POST …/payment-requests` (multipart: clinicId, amount, note, proof), `GET …/payment-requests`. Clinic: `GET /api/v1/clinic/payment-requests?status=&patientId=`, `POST …/{id}/approve`, `POST …/{id}/reject` (reason) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
@@ -163,6 +164,32 @@ The platform owner's own sign-in, separate from clinic staff and patients.
   (DELETE). It is refused while the doctor still has visits at a clinic in use. Files are deleted from storage only
   after the database change commits; the audit log keeps a note.
 - Local dev server: `admin@example.com` / `change-me-admin-please` (only when `SUPER_ADMIN_EMAIL` isn't set).
+
+### Plans and billing
+
+Every clinic has a plan, worked out from the day it registered (`clinic.billing_started_on`) and its current staff:
+
+| Month | Price a month |
+|---|---|
+| 1 | Free |
+| 2 to 7 | ₹50 |
+| 8 onwards | ₹100 |
+
+From month 2, every active staff member except the first (the owner) adds ₹20 a month; switching someone off stops
+the charge, and nothing is charged for staff in the free month. A "month" runs from the start date to the same day
+next month. The rules are in `SubscriptionPlan`; `SubscriptionService` applies them, so there is no scheduled job.
+Existing clinics start their free month on the day the migration ran.
+
+- **Collected by hand:** clinics pay you outside the app (UPI). On **Billing** in `/admin` you see every clinic as
+  free month, paid or payment due (those first), what it owes next, and who to call. **Record payment** takes the
+  months paid for and the amount received (filled in from the price) and moves `paid_until` forward: from the end of
+  what was already paid for, or from today for a clinic that was behind. The payments are kept in
+  `subscription_payment`.
+- **Clinic admins** see **Your plan** at the top of Staff (this month's price and what it is made of, paid-until date,
+  and the next price change) and a heads-up on Overview when payment is due, the plan ends within a week, or the
+  price changes within 30 days.
+- **Nothing is blocked yet** when a clinic is behind: the screens just say so. Read-only mode after a grace period
+  can be added once you want it.
 
 ### Web app: patient screens (`/my`)
 

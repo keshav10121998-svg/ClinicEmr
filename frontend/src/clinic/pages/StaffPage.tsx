@@ -3,6 +3,7 @@ import { api, ApiError } from '../api';
 import { roleLabel } from '../App';
 import { PhoneInput, isMobile, toMobileDigits } from '../../shared/PhoneInput';
 import type { Role, StaffMember } from '../types';
+import { PlanCard } from '../components/PlanCard';
 
 const ROLES: Role[] = ['DOCTOR', 'NURSE', 'FRONT_DESK', 'ADMIN'];
 
@@ -43,6 +44,7 @@ export function StaffPage() {
   return (
     <>
       <h1>Staff</h1>
+      <PlanCard />
       {error && <div className="alert error">{error}</div>}
       <div className="card">
         <h2>Team</h2>

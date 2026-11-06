@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adminApi, ApiError, setAdminToken, setAdminUnauthorizedHandler,
   type AdminVisit, type DeleteResult, type Doctor, type DoctorDetail, type Overview, type PurgeResult } from './api';
 import { date, dateTime } from '../clinic/format';
+import { BillingPage } from './BillingPage';
 
 interface AdminSession {
   token: string;
@@ -48,6 +49,10 @@ export function App() {
     <>
       <header className="topbar">
         <Link className="brand" to="/admin">ClinicEMR · Super admin</Link>
+        <nav>
+          <NavLink to="/admin" end>Doctors</NavLink>
+          <NavLink to="/admin/billing">Billing</NavLink>
+        </nav>
         <span className="spacer" />
         <span className="who">{session.name}</span>
         <button className="link" onClick={() => update(undefined)}>Sign out</button>
@@ -56,6 +61,7 @@ export function App() {
         <Routes>
           <Route index element={<AdminHome />} />
           <Route path="doctors/:id" element={<DoctorPage />} />
+          <Route path="billing" element={<BillingPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </main>
@@ -140,7 +146,10 @@ function AdminHome() {
 
   return (
     <>
-      <h1>All clinics</h1>
+      <div className="between">
+        <h1>All clinics</h1>
+        <Link className="admin-link-btn" to="/admin/billing">Billing</Link>
+      </div>
       {error && <div className="alert error">{error}</div>}
       {flash && <div className="alert info">{flash}</div>}
       <div className="stat-tiles">
