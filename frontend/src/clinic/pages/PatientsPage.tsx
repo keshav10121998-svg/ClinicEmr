@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
+import { useCached } from '../cache';
 import type { DuplicateCandidate, Patient } from '../types';
 import { ageSex, date } from '../format';
 import { AccessRequestFlow } from '../components/AccessRequestFlow';
@@ -26,17 +27,11 @@ interface RecentPatient {
 /** Home screen: the clinic's patients, most recently seen first. Tap one to open; typing only narrows the list. */
 export function PatientsPage() {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<RecentPatient[]>();
-  const [error, setError] = useState<string>();
+  // Shown at once from the copy kept on this phone, then refreshed
+  const { data: patients, error } = useCached<RecentPatient[]>('/clinic/patients/recent?limit=300', 'Could not load patients.');
   const [filter, setFilter] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [asking, setAsking] = useState(false);
-
-  useEffect(() => {
-    api.get<RecentPatient[]>('/clinic/patients/recent?limit=300')
-      .then(setPatients)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load patients.'));
-  }, []);
 
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();

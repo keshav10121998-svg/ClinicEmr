@@ -92,7 +92,7 @@ button.block { width: 100%; }
 .request { border: 2px solid var(--accent); }
 
 .otp { font-family: var(--mono); font-size: 24px; letter-spacing: .4em; text-align: center; }
-.auth { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.auth { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 12px; padding: 24px 16px; }
 .auth .card { width: min(420px, 100%); gap: 14px; }
 
 dl.visit dt { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-top: 12px; }

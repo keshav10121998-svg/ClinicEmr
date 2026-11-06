@@ -7,8 +7,10 @@ interface InstallPromptEvent extends Event {
 }
 
 let deferred: InstallPromptEvent | undefined;
-const loadedAt = Date.now();
-const WAIT_MS = 4000;
+// Chrome's install box was shown and closed without installing: offer the menu steps instead of hiding the banner
+let promptClosed = false;
+// "Not now" hides the banner until the app is opened again, not for good
+let notNowThisVisit = false;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
@@ -17,11 +19,13 @@ if (typeof window !== 'undefined') {
     // Our own banner asks instead of Chrome's small bar at the bottom
     e.preventDefault();
     deferred = e as InstallPromptEvent;
+    // Chrome only offers this when the app isn't installed (for example it was removed again)
+    forgetInstalled();
     notify();
   });
   window.addEventListener('appinstalled', () => {
     deferred = undefined;
-    remember();
+    rememberInstalled();
     notify();
   });
 }
@@ -33,20 +37,21 @@ export function registerServiceWorker() {
   }
 }
 
-const KEY = 'install-banner-hidden-until';
-const HIDE_DAYS = 30;
+const KEY = 'app-installed';
 
-function remember() {
-  try { localStorage.setItem(KEY, String(Date.now() + HIDE_DAYS * 86_400_000)); } catch { /* private mode */ }
+function rememberInstalled() {
+  try { localStorage.setItem(KEY, '1'); localStorage.removeItem('install-banner-hidden-until'); } catch { /* private mode */ }
 }
 
-function hiddenByUser() {
-  try { return Number(localStorage.getItem(KEY) ?? 0) > Date.now(); } catch { return false; }
+function forgetInstalled() {
+  try { localStorage.removeItem(KEY); } catch { /* private mode */ }
 }
 
+/** Running as the installed app, or installed from this browser (until Chrome says it's gone again). */
 function installed() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as Navigator & { standalone?: boolean }).standalone === true) return true;
+  try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
 }
 
 const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -56,26 +61,28 @@ const isAndroid = /android/i.test(ua);
 const inAppBrowser = /wv\)|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
 
 /**
- * "Add ClinicEMR to your home screen": one tap on Android and desktop Chrome; on iPhone (and inside WhatsApp's
- * browser) it shows the steps instead. Never shown in the installed app; Not now hides it for 30 days.
+ * "Add ClinicEMR to your home screen" with an Install button: one tap when Chrome allows it, otherwise (iPhone,
+ * WhatsApp's browser, or before Chrome is ready) the button shows the steps for that phone. Shown on the sign-in
+ * pages and the home screens until the app is installed; Not now hides it only until the app is opened again.
  */
 export function InstallApp({ appName }: { appName: string }) {
   const [, rerender] = useState(0);
-  const [dismissed, setDismissed] = useState(hiddenByUser);
+  const [dismissed, setDismissed] = useState(notNowThisVisit);
   const [showSteps, setShowSteps] = useState(false);
-  // Chrome may decide a little after load; wait before offering the manual steps on Android
-  const [waited, setWaited] = useState(() => Date.now() - loadedAt >= WAIT_MS);
 
   useEffect(() => {
     const l = () => rerender((n) => n + 1);
     listeners.add(l);
-    const t = window.setTimeout(() => setWaited(true), Math.max(0, WAIT_MS - (Date.now() - loadedAt)));
-    return () => { listeners.delete(l); window.clearTimeout(t); };
+    return () => { listeners.delete(l); };
   }, []);
 
   if (dismissed || installed()) return null;
-  const manual = isIos || (isAndroid && waited && (!deferred || inAppBrowser));
+  // Phones always see the banner; computers only when Chrome can install (or its box was closed)
+  const manual = isIos || isAndroid || promptClosed;
   if (!deferred && !manual) return null;
+  // Chrome offers its own install box only after the page has been used for a bit (about 30 seconds and a tap),
+  // never inside WhatsApp's browser or on iPhone, and not again for a while after it was closed
+  const oneTap = !!deferred && !inAppBrowser;
 
   async function install() {
     if (!deferred) return;
@@ -83,12 +90,13 @@ export function InstallApp({ appName }: { appName: string }) {
     await e.prompt();
     const { outcome } = await e.userChoice;
     deferred = undefined;
-    if (outcome === 'accepted') remember();
+    if (outcome === 'accepted') rememberInstalled();
+    else promptClosed = true;
     rerender((n) => n + 1);
   }
 
   function notNow() {
-    remember();
+    notNowThisVisit = true;
     setDismissed(true);
   }
 
@@ -102,9 +110,10 @@ export function InstallApp({ appName }: { appName: string }) {
         {showSteps && <Steps />}
       </div>
       <div className="install-actions">
-        {deferred && !inAppBrowser
-          ? <button type="button" className="install-go" onClick={install}>Install</button>
-          : !showSteps && <button type="button" className="install-go" onClick={() => setShowSteps(true)}>Show me how</button>}
+        {/* Always "Install": one tap where Chrome allows it right now, otherwise the steps for this phone */}
+        {(oneTap || !showSteps) && (
+          <button type="button" className="install-go" onClick={oneTap ? install : () => setShowSteps(true)}>Install</button>
+        )}
         <button type="button" className="install-later" onClick={notNow}>Not now</button>
       </div>
     </div>
@@ -155,6 +164,7 @@ const CSS = `
 .install-text span { color: var(--muted, #5b6a65); font-size: 0.92em; }
 .install-text ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; }
 .install-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.auth > .install-app { width: min(420px, 100%); margin: 0; }
 .install-actions button { font: inherit; min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; }
 .install-go { background: var(--accent, #0d6b5a); color: #fff; border: 0; font-weight: 600 !important; }
 .install-later { background: transparent; border: 0; color: var(--accent, #0d6b5a); text-decoration: underline; }

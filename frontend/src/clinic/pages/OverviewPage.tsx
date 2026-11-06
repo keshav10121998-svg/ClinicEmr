@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
+import { useCached } from '../cache';
 import type { VisitCount, VisitorList, VisitRange } from '../types';
 import { ageSex } from '../format';
 import { useSession } from '../session';
@@ -17,24 +18,10 @@ export function OverviewPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const range = (RANGES.find((r) => r === params.get('range')) ?? 'TODAY') as VisitRange;
-  const [counts, setCounts] = useState<VisitCount[]>();
-  const [list, setList] = useState<VisitorList>();
-  const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    api.get<VisitCount[]>('/clinic/visit-stats')
-      .then(setCounts)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load the numbers.'));
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    setList(undefined);
-    api.get<VisitorList>(`/clinic/visit-stats/visitors?range=${range.toLowerCase()}`)
-      .then((l) => !cancelled && setList(l))
-      .catch((e) => !cancelled && setError(e instanceof ApiError ? e.message : 'Could not load the list.'));
-    return () => { cancelled = true; };
-  }, [range]);
+  // Shown at once from the copy kept on this phone, then refreshed
+  const { data: counts, error: countsError } = useCached<VisitCount[]>('/clinic/visit-stats', 'Could not load the numbers.');
+  const { data: list, error: listError } = useCached<VisitorList>(`/clinic/visit-stats/visitors?range=${range.toLowerCase()}`, 'Could not load the list.');
+  const error = countsError ?? listError;
 
   const showDate = range !== 'TODAY' && range !== 'YESTERDAY';
 

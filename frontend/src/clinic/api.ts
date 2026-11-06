@@ -26,6 +26,10 @@ export function setAuth(next: Auth) {
   auth = next;
 }
 
+export function currentClinicId() {
+  return auth.clinicId;
+}
+
 export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }

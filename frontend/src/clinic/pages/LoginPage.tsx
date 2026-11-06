@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useSession } from '../session';
 import { SignInSwitch } from '../../shared/SignInSwitch';
+import { InstallApp } from '../../shared/InstallApp';
 import { isMobile, toMobileDigits } from '../../shared/PhoneInput';
 
 /** Staff sign in with their email address or their 10-digit mobile number, and their password. */
@@ -40,6 +41,7 @@ export function LoginPage() {
 
   return (
     <div className="auth">
+      <InstallApp appName="ClinicEMR" />
       <form className="card" onSubmit={submit}>
         <SignInSwitch current="clinic" />
         <div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
+import { useCached } from '../cache';
 import type { Earnings, EarningsRange, OwingList } from '../types';
 import { ageSex, date } from '../format';
 import { dueLabel, PAYMENTS_CHANGED, rupees } from '../payments';
@@ -16,18 +17,14 @@ export function EarningsPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const owingRange = RANGES.find((r) => r.toLowerCase() === params.get('owing'));
-  const [earnings, setEarnings] = useState<Earnings>();
+  const [version, setVersion] = useState(0);
+  // Shown at once from the copy kept on this phone, then refreshed (and again after any payment)
+  const { data: earnings, error: earningsError } = useCached<Earnings>('/clinic/earnings', 'Could not load earnings.', version);
   const [owing, setOwing] = useState<OwingList>();
   const [error, setError] = useState<string>();
   const list = useRef<HTMLDivElement>(null);
 
   const show = (o?: EarningsRange) => setParams(o ? { owing: o.toLowerCase() } : {}, { replace: true });
-
-  const load = useCallback(() => {
-    api.get<Earnings>('/clinic/earnings')
-      .then(setEarnings)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Could not load earnings.'));
-  }, []);
 
   const loadOwing = useCallback(() => {
     if (!owingRange) { setOwing(undefined); return; }
@@ -39,18 +36,17 @@ export function EarningsPage() {
   useEffect(() => { setOwing(undefined); loadOwing(); }, [loadOwing]);
   useEffect(() => { if (owingRange) list.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [owingRange]);
   useEffect(() => {
-    load();
-    const refresh = () => { load(); loadOwing(); };
+    const refresh = () => { setVersion((v) => v + 1); loadOwing(); };
     window.addEventListener(PAYMENTS_CHANGED, refresh);
     return () => window.removeEventListener(PAYMENTS_CHANGED, refresh);
-  }, [load, loadOwing]);
+  }, [loadOwing]);
 
 
   return (
     <>
       <h1>Earnings</h1>
       {earnings && <p className="muted small" style={{ margin: 0 }}>{earnings.mine ? 'Your visits.' : 'All visits at this clinic.'} Total = paid + balance, for visits in each period.</p>}
-      {error && <div className="alert error">{error}</div>}
+      {(earningsError ?? error) && <div className="alert error">{earningsError ?? error}</div>}
 
       <div className="earn-grid">
         {RANGES.map((r) => {

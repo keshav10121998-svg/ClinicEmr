@@ -53,8 +53,37 @@ public class VisitStatsService {
         this.clock = clock;
     }
 
+    /** Every period in one database round trip: each counts the same visits from its own start time. */
     public List<Count> counts(ClinicContext ctx) {
-        return List.of(Range.values()).stream().map(r -> count(ctx, r)).toList();
+        Instant[] today = window(Range.TODAY);
+        Instant[] yesterday = window(Range.YESTERDAY);
+        return jdbc.sql("""
+                WITH v AS (
+                  SELECT e.profile_id, e.started_at
+                    FROM encounter e
+                    JOIN patient_profile p ON p.id = e.profile_id
+                   WHERE e.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample AND e.started_at < :end
+                )
+                SELECT r.period,
+                       (SELECT count(DISTINCT v.profile_id) FROM v WHERE v.started_at >= r.since AND v.started_at < r.until)::int AS patients,
+                       (SELECT count(*) FROM v WHERE v.started_at >= r.since AND v.started_at < r.until)::int AS visits
+                  FROM (VALUES (1, 'TODAY', CAST(:today AS timestamptz), CAST(:end AS timestamptz)),
+                               (2, 'YESTERDAY', CAST(:yesterday AS timestamptz), CAST(:today AS timestamptz)),
+                               (3, 'LAST_7_DAYS', CAST(:week AS timestamptz), CAST(:end AS timestamptz)),
+                               (4, 'THIS_YEAR', CAST(:year AS timestamptz), CAST(:end AS timestamptz)),
+                               (5, 'ALL', CAST(:all AS timestamptz), CAST(:end AS timestamptz)))
+                       AS r(n, period, since, until)
+                 ORDER BY r.n
+                """)
+                .param("clinicId", ctx.clinicId())
+                .param("end", java.sql.Timestamp.from(today[1]))
+                .param("today", java.sql.Timestamp.from(today[0]))
+                .param("yesterday", java.sql.Timestamp.from(yesterday[0]))
+                .param("week", java.sql.Timestamp.from(window(Range.LAST_7_DAYS)[0]))
+                .param("year", java.sql.Timestamp.from(window(Range.THIS_YEAR)[0]))
+                .param("all", java.sql.Timestamp.from(window(Range.ALL)[0]))
+                .query((rs, i) -> new Count(Range.valueOf(rs.getString("period")), rs.getInt("patients"), rs.getInt("visits")))
+                .list();
     }
 
     private Count count(ClinicContext ctx, Range r) {

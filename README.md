@@ -101,8 +101,10 @@ layout. Clinic screens so far:
   page hides it.
 - **Installs like an app:** both sides are installable web apps (`manifest.json` for clinic staff,
   `manifest-my.json` "My health" for patients, plus `sw.js`). A banner offers **Install** on Android/desktop
-  Chrome, and step-by-step help on iPhone and inside WhatsApp's browser; **Not now** hides it for 30 days. With no
-  internet the app shows a "No internet connection" page; records are never cached on the phone.
+  Chrome, and step-by-step help on iPhone and inside WhatsApp's browser. It shows on the sign-in pages and the home
+  screens until the app is installed; **Not now** hides it only until the app is opened again, and closing Chrome's
+  install box switches it to the menu steps. With no internet the app shows a "No internet connection" page. Only
+  the patients list, Overview and Earnings are kept on the phone (for instant display), and Sign out wipes them.
 - **Patient:** header with allergies in red (or "not asked yet"), active problems, current medicines, latest
   vitals, allergy editor, visits at this clinic with print links, and reports and files (attach a photo or PDF).
   Front desk sees the header only.
@@ -298,6 +300,21 @@ a real SMS provider through the outbox with retries, virus scanning of uploads, 
 Step by step in [DEPLOY.md](DEPLOY.md): the app on Render's free plan (from the root `Dockerfile` and `render.yaml`),
 the database and file storage on Supabase (Mumbai), and a built-in self-ping (`KEEP_AWAKE=true`) to keep it awake. Files are then served through
 the backend (`STORAGE_DOWNLOAD_MODE=proxy`), and the database pool stays small (`DB_POOL_SIZE=5`).
+
+### Speed on the free plan
+
+On the free plan the server has a tenth of a CPU and sits in Singapore while the database is in Mumbai, so each
+database round trip costs time. The app is built around that:
+
+- Responses are gzip-compressed (`server.compression`): the app's script goes over the network as about 115 KB
+  instead of 390 KB. Scripts have long-lived cache headers, so a phone downloads them once per release.
+- Earnings and Overview fetch all their periods in one query each, instead of one query per period.
+- The patients list, Overview and Earnings show the copy kept on the phone straight away and refresh it from the
+  server in the background (`clinic/cache.ts`). The copy is kept per clinic and wiped on Sign out or when another
+  staff member signs in on the same phone.
+
+The biggest further gain is hosting, not code: a paid Render plan (more CPU), or running the app server in Mumbai
+next to the database.
 
 ## Run locally
 

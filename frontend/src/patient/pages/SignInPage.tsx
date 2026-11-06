@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { useSession, type SignedIn } from '../session';
 import { SignInSwitch } from '../../shared/SignInSwitch';
+import { InstallApp } from '../../shared/InstallApp';
 import { PhoneInput, isMobile } from '../../shared/PhoneInput';
 
 type Mode = 'pin' | 'code';
@@ -116,6 +117,7 @@ export function SignInPage() {
 
   return (
     <div className="auth">
+      <InstallApp appName="My health" />
       <div className="card">
         <SignInSwitch current="patient" />
         <div>

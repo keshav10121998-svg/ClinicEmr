@@ -174,7 +174,7 @@ details.more[open] { display: grid; gap: 14px; }
 @media (pointer: coarse) { input, select, textarea, button { min-height: 44px; font-size: 16px; } }
 
 /* ----- auth */
-.auth { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+.auth { min-height: 100%; display: grid; place-items: center; align-content: center; gap: 12px; padding: 24px 16px; }
 .auth .card { width: min(420px, 100%); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

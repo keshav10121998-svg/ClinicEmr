@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, setAuth, setUnauthorizedHandler } from './api';
+import { setCacheOwner } from './cache';
 import type { ClinicMembership, LoginResponse, Role } from './types';
 
 interface Session {
@@ -51,11 +52,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | undefined>(() => {
     const s = load();
     if (s) setAuth({ token: s.token, clinicId: s.clinicId });
+    setCacheOwner(s?.staffId);
     return s;
   });
 
   const update = useCallback((s?: Session) => {
     setAuth(s ? { token: s.token, clinicId: s.clinicId } : {});
+    setCacheOwner(s?.staffId);
     save(s);
     setSession(s);
   }, []);

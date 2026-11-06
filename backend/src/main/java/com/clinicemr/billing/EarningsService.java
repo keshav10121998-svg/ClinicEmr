@@ -53,47 +53,51 @@ public class EarningsService {
 
     public Earnings earnings(ClinicContext ctx, boolean mineAsked) {
         boolean mine = scope(ctx, mineAsked);
-        return new Earnings(mine, canSeeClinic(ctx), List.of(Range.values()).stream().map(r -> period(ctx, mine, r)).toList());
+        return new Earnings(mine, canSeeClinic(ctx), periods(ctx, mine));
     }
 
-    private Period period(ClinicContext ctx, boolean mine, Range r) {
-        Instant[] w = window(r);
-        record Billed(int visits, int paid, int balance) {
-        }
-        Billed b = jdbc.sql("""
-                SELECT count(*)::int AS visits, coalesce(sum(vp.paid), 0)::int AS paid,
-                       coalesce(sum(vp.balance), 0)::int AS balance
-                  FROM visit_payment vp
-                  JOIN encounter e ON e.id = vp.encounter_id
-                  JOIN patient_profile p ON p.id = vp.profile_id
-                 WHERE vp.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample AND p.deleted_at IS NULL
-                   AND (NOT :mine OR e.doctor_id = :staffId)
-                   AND e.started_at >= :from AND e.started_at < :to
+    /**
+     * All four periods in one database round trip (the database is far from the app server, so each trip costs
+     * time): each period sums the same visits and payments from its own start date.
+     */
+    private List<Period> periods(ClinicContext ctx, boolean mine) {
+        return jdbc.sql("""
+                WITH billed AS (
+                  SELECT e.started_at, vp.paid, vp.balance
+                    FROM visit_payment vp
+                    JOIN encounter e ON e.id = vp.encounter_id
+                    JOIN patient_profile p ON p.id = vp.profile_id
+                   WHERE vp.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample AND p.deleted_at IS NULL
+                     AND (NOT :mine OR e.doctor_id = :staffId) AND e.started_at < :end
+                ), received AS (
+                  SELECT pe.received_at, pe.amount
+                    FROM payment_entry pe
+                    JOIN encounter e ON e.id = pe.encounter_id
+                    JOIN patient_profile p ON p.id = pe.profile_id
+                   WHERE pe.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample AND p.deleted_at IS NULL
+                     AND (NOT :mine OR e.doctor_id = :staffId) AND pe.received_at < :end
+                )
+                SELECT r.period,
+                       (SELECT count(*) FROM billed b WHERE b.started_at >= r.since)::int AS visits,
+                       (SELECT coalesce(sum(b.paid), 0) FROM billed b WHERE b.started_at >= r.since)::int AS paid,
+                       (SELECT coalesce(sum(b.balance), 0) FROM billed b WHERE b.started_at >= r.since)::int AS balance,
+                       (SELECT coalesce(sum(x.amount), 0) FROM received x WHERE x.received_at >= r.since)::int AS collected
+                  FROM (VALUES (1, 'TODAY', CAST(:today AS timestamptz)), (2, 'THIS_MONTH', CAST(:month AS timestamptz)),
+                               (3, 'THIS_YEAR', CAST(:year AS timestamptz)), (4, 'ALL', CAST(:all AS timestamptz)))
+                       AS r(n, period, since)
+                 ORDER BY r.n
                 """)
                 .param("clinicId", ctx.clinicId())
                 .param("mine", mine)
                 .param("staffId", ctx.staffId())
-                .param("from", Timestamp.from(w[0]))
-                .param("to", Timestamp.from(w[1]))
-                .query(Billed.class)
-                .single();
-        int collected = jdbc.sql("""
-                SELECT coalesce(sum(pe.amount), 0)::int
-                  FROM payment_entry pe
-                  JOIN encounter e ON e.id = pe.encounter_id
-                  JOIN patient_profile p ON p.id = pe.profile_id
-                 WHERE pe.clinic_id = :clinicId AND e.status <> 'CANCELLED' AND NOT p.sample AND p.deleted_at IS NULL
-                   AND (NOT :mine OR e.doctor_id = :staffId)
-                   AND pe.received_at >= :from AND pe.received_at < :to
-                """)
-                .param("clinicId", ctx.clinicId())
-                .param("mine", mine)
-                .param("staffId", ctx.staffId())
-                .param("from", Timestamp.from(w[0]))
-                .param("to", Timestamp.from(w[1]))
-                .query(Integer.class)
-                .single();
-        return new Period(r, b.visits(), b.paid() + b.balance(), b.paid(), b.balance(), collected);
+                .param("end", Timestamp.from(window(Range.TODAY)[1]))
+                .param("today", Timestamp.from(window(Range.TODAY)[0]))
+                .param("month", Timestamp.from(window(Range.THIS_MONTH)[0]))
+                .param("year", Timestamp.from(window(Range.THIS_YEAR)[0]))
+                .param("all", Timestamp.from(window(Range.ALL)[0]))
+                .query((rs, i) -> new Period(Range.valueOf(rs.getString("period")), rs.getInt("visits"),
+                        rs.getInt("paid") + rs.getInt("balance"), rs.getInt("paid"), rs.getInt("balance"), rs.getInt("collected")))
+                .list();
     }
 
     /** Patients with a balance on visits in the period, the longest overdue first. */
@@ -131,7 +135,7 @@ public class EarningsService {
         boolean truncated = rows.size() > LIST_LIMIT;
         List<Row> shown = truncated ? rows.subList(0, LIST_LIMIT) : rows;
         LocalDate today = LocalDate.now(IST);
-        Period p = period(ctx, mine, range);
+        Period p = periods(ctx, mine).stream().filter(x -> x.range() == range).findFirst().orElseThrow();
         return new OwingList(range, mine, shown.size(), p.balance(), truncated, shown.stream()
                 .map(r -> new Owing(r.publicId(), r.name(), r.mrn(), r.gender(), PatientDtos.age(r.dob()),
                         r.primaryPhoneE164() == null ? null : r.primaryPhoneE164().substring(3), r.balance(), r.visits(),
