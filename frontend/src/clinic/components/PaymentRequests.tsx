@@ -95,6 +95,7 @@ function RequestRow({ request: r, showName, canDecide, onOpenPatient, onPreview,
       </div>
       {canDecide && !rejecting && (
         <div className="decide">
+          <span className="small muted">The screenshot is deleted once you approve or reject, so check it first.</span>
           <input aria-label={`Comment for ${r.patientName} (optional)`} placeholder='Comment for the patient (optional), e.g. "Received, thank you"'
                  maxLength={300} value={comment} onChange={(e) => setComment(e.target.value)} disabled={busy} />
           <div className="row">

@@ -138,7 +138,7 @@ public class PlatformPurgeService {
                 .param("c", clinicId).query(Long.class).list();
         deleteEncounters(jdbc.sql("SELECT id FROM encounter WHERE clinic_id = :c").param("c", clinicId).query(UUID.class).list(), t);
         deleteDocuments("d.clinic_id = :v", clinicId, t);
-        t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE clinic_id = :c").param("c", clinicId).query(String.class).list());
+        t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE clinic_id = :c AND proof_key IS NOT NULL").param("c", clinicId).query(String.class).list());
         for (String table : List.of("payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
                 "problem_status", "medication_stop", "follow_up")) {
             jdbc.sql("DELETE FROM " + table + " WHERE clinic_id = :c").param("c", clinicId).update();
@@ -176,7 +176,7 @@ public class PlatformPurgeService {
             return;
         }
         deleteDocuments("d.profile_id = :v", profileId, t);
-        t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE profile_id = :p").param("p", profileId).query(String.class).list());
+        t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE profile_id = :p AND proof_key IS NOT NULL").param("p", profileId).query(String.class).list());
         List<Long> consents = jdbc.sql("SELECT id FROM consent WHERE profile_id = :p").param("p", profileId).query(Long.class).list();
         for (String table : List.of("payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
                 "problem_status", "medication_stop", "vital_sign", "diagnosis", "investigation_order", "follow_up",

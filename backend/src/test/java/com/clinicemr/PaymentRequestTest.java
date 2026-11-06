@@ -2,6 +2,8 @@ package com.clinicemr;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -23,6 +25,9 @@ import org.springframework.test.web.servlet.ResultActions;
 
 /** A patient sends the amount and a screenshot; the doctor approves (recorded like "Received") or rejects it. */
 class PaymentRequestTest extends IntegrationTestBase {
+
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
     private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0 };
 
@@ -79,12 +84,17 @@ class PaymentRequestTest extends IntegrationTestBase {
         assertThat(pending.get(0).get("proofUrl").asText()).isEqualTo("http://files.example/proof");
         assertThat(pending.get(0).get("patientName").asText()).isEqualTo("Meera Iyer");
 
+        // Nothing is deleted while the requests are waiting
+        verify(storage, never()).delete(anyString());
+
         // Front desk can't decide; the doctor approves the first: recorded like Received
         String approveFirst = "/api/v1/clinic/payment-requests/" + first.get("id").asText() + "/approve";
         perform(post(approveFirst), desk, clinic, null).andExpect(status().isForbidden());
         perform(post(approveFirst), doctor, clinic, "{\"comment\": \"Received, thank you\"}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.amount").value(200)).andExpect(jsonPath("$.remainingBalance").value(100));
         perform(post(approveFirst), doctor, clinic, null).andExpect(status().isConflict());
+        // Approving deletes the screenshot: the file is removed and the request keeps no link to it
+        verify(storage).delete("payment-proofs/" + first.get("id").asText() + ".png");
         perform(get("/api/v1/clinic/encounters/" + visit + "/payment"), desk, clinic, null)
                 .andExpect(jsonPath("$.paid").value(300)).andExpect(jsonPath("$.balance").value(100));
 
@@ -93,6 +103,15 @@ class PaymentRequestTest extends IntegrationTestBase {
         perform(post(rejectSecond), doctor, clinic, "{\"reason\": \"\"}").andExpect(status().isBadRequest());
         perform(post(rejectSecond), doctor, clinic, "{\"reason\": \"Payment not received\"}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REJECTED"));
+
+        // Rejecting deletes the screenshot too, and the clinic's list no longer offers it
+        verify(storage).delete("payment-proofs/" + second.get("id").asText() + ".png");
+        JsonNode decided = body(perform(get("/api/v1/clinic/payment-requests?status=ALL"), desk, clinic, null).andExpect(status().isOk()));
+        assertThat(decided).hasSize(2);
+        assertThat(decided.get(0).hasNonNull("proofUrl")).isFalse();
+        assertThat(decided.get(1).hasNonNull("proofUrl")).isFalse();
+        assertThat(jdbc.sql("SELECT count(*) FROM payment_request WHERE clinic_id = :c AND proof_key IS NULL AND proof_deleted_at IS NOT NULL")
+                .param("c", clinic).query(Integer.class).single()).isEqualTo(2);
 
         JsonNode mine = body(app(get(base + "/payment-requests"), patient).andExpect(status().isOk()));
         assertThat(mine).hasSize(2);

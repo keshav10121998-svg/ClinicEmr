@@ -21,6 +21,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -30,6 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Service
 public class PaymentRequestService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PaymentRequestService.class);
 
     private static final long MAX_PROOF_BYTES = 8L * 1024 * 1024;
     private static final Map<String, String> PROOF_TYPES = Map.of(
@@ -184,6 +188,7 @@ public class PaymentRequestService {
                 .param("staffId", ctx.staffId())
                 .param("id", id)
                 .update();
+        deleteProof(id);
         audit.staff(ctx.staffId(), ctx.clinicId(), "PAYMENT_PROOF_APPROVED", "payment_request", id.toString(),
                 Map.of("amount", amount));
         return received;
@@ -204,11 +209,37 @@ public class PaymentRequestService {
                 .param("staffId", ctx.staffId())
                 .param("id", id)
                 .update();
+        deleteProof(id);
         audit.staff(ctx.staffId(), ctx.clinicId(), "PAYMENT_PROOF_REJECTED", "payment_request", id.toString(), Map.of());
         return find(id, true).orElseThrow();
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /**
+     * The screenshot or PDF is only needed to decide, so it goes once the request is approved or rejected: the
+     * database forgets where it was now, and the stored file is deleted when the decision is final. A file that
+     * can't be deleted is logged, and {@link LeftoverProofCleanup} removes it the next time the app starts.
+     */
+    private void deleteProof(UUID id) {
+        String key = jdbc.sql("SELECT proof_key FROM payment_request WHERE id = :id").param("id", id)
+                .query(String.class).optional().orElse(null);
+        if (key == null) {
+            return;
+        }
+        jdbc.sql("UPDATE payment_request SET proof_key = NULL, proof_type = NULL, proof_deleted_at = now() WHERE id = :id")
+                .param("id", id).update();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    storage.delete(key);
+                } catch (RuntimeException e) {
+                    log.warn("Could not delete payment proof {}: {}", key, e.getMessage());
+                }
+            }
+        });
+    }
 
     private record Pending(long profileId, int amount) {
     }
@@ -256,7 +287,8 @@ public class PaymentRequestService {
         return q.query(Row.class).list().stream()
                 .map(r -> new Request(r.id(), r.clinicId(), r.clinicName(), r.publicId(), r.name(), r.mrn(), r.amount(), r.note(),
                         r.status(), r.approvedAmount(), r.rejectReason(), r.createdAt(), r.decidedAt(), r.decidedBy(), r.decisionComment(),
-                        withProof ? storage.presignDownload(r.proofKey()).toString() : null, withProof ? r.proofType() : null))
+                        withProof && r.proofKey() != null ? storage.presignDownload(r.proofKey()).toString() : null,
+                        withProof && r.proofKey() != null ? r.proofType() : null))
                 .toList();
     }
 }

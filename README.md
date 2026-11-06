@@ -63,6 +63,10 @@ layout. Clinic screens so far:
   (checked to really be an image/PDF, up to 8 MB) and an optional UPI reference. The clinic sees **Payment requests**
   on Overview (counted on the tab) and on the patient's page, with **View proof**. A doctor or admin **Approves**
   (recorded like Received, latest visit first, and added to the history) or **Rejects** with a reason the patient sees.
+  **The screenshot or PDF is deleted from storage as soon as the request is approved or rejected** (it is only needed
+  to decide); the request itself (amount, who decided, comment or reason) stays in the history. Proofs left from
+  before this rule are removed each time the server starts (`LeftoverProofCleanup`), and a file whose deletion
+  failed is retried the same way. Requests still waiting keep their file.
 - **Comments (optional):** every way of recording money (the visit's Payment card, the visit-list amount box, the
   patient's Payments card) has a Comment box; the comment is saved with that payment and shown in Payment history.
   Approving a patient's proof asks for an optional comment, which the patient sees in the app.

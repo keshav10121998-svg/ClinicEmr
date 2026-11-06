@@ -142,6 +142,7 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
         <input type="file" accept="image/*,application/pdf" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
       {preview && <img src={preview} alt="Payment screenshot preview" className="proof-preview" />}
+      <span className="small muted">The screenshot is deleted from ClinicEMR as soon as the clinic approves or rejects it.</span>
       <label className="field">UPI reference or note (optional)
         <input value={note} maxLength={300} placeholder="e.g. UPI ref 4123 5567 8901" onChange={(e) => setNote(e.target.value)} />
       </label>
