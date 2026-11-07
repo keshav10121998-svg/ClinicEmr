@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, postForm } from '../api';
 import type { ClinicBalance, PaymentRequest } from '../types';
 import { date, dateTime } from '../format';
-import { shrinkImage } from '../../shared/shrinkImage';
+import { shrinkFile } from '../../shared/shrinkFile';
 
 const rupees = (n: number) => '₹' + n.toLocaleString('en-IN');
 const STATUS: Record<PaymentRequest['status'], string> = {
@@ -84,6 +84,7 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
   const [preview, setPreview] = useState<string>();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string>();
   const n = Number(amount || 0);
 
@@ -105,7 +106,9 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
       return;
     }
     // A photo or screenshot is made much smaller first, so it also sends quickly on a slow connection
-    const f = await shrinkImage(picked);
+    setPreparing(true);
+    const f = await shrinkFile(picked);
+    setPreparing(false);
     if (f.size > 8 * 1024 * 1024) {
       setError('That file is bigger than 8 MB. Send a smaller screenshot.');
       return;
@@ -145,7 +148,7 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
       </label>
       {capped && <span className="small field-hint">Can't be more than {rupees(max)}.</span>}
       <label className="attach-proof">
-        {file ? `Change screenshot (${file.name})` : 'Add payment screenshot'}
+        {preparing ? 'Making the file smaller…' : file ? `Change screenshot (${file.name})` : 'Add payment screenshot'}
         <input type="file" accept="image/*,application/pdf" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
       {preview && <img src={preview} alt="Payment screenshot preview" className="proof-preview" />}
@@ -153,7 +156,7 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
       <label className="field">UPI reference or note (optional)
         <input value={note} maxLength={300} placeholder="e.g. UPI ref 4123 5567 8901" onChange={(e) => setNote(e.target.value)} />
       </label>
-      <button className="primary block" disabled={busy || n < 1 || !file}>{busy ? 'Sending…' : `Send ${rupees(n || 0)} for the clinic to check`}</button>
+      <button className="primary block" disabled={busy || preparing || n < 1 || !file}>{busy ? 'Sending…' : `Send ${rupees(n || 0)} for the clinic to check`}</button>
       <button type="button" className="link" onClick={onCancel}>Cancel</button>
     </form>
   );

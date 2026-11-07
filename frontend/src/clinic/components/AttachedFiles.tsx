@@ -3,7 +3,7 @@ import { api, ApiError, putFile } from '../api';
 import type { DocumentDetail, DocumentSummary } from '../types';
 import { date } from '../format';
 import { FilePreview, type PreviewPage } from './FilePreview';
-import { shrinkImage } from '../../shared/shrinkImage';
+import { shrinkFile } from '../../shared/shrinkFile';
 
 const KINDS: [string, string][] = [['LAB_REPORT', 'Report'], ['IMAGING', 'Scan / X-ray'], ['PRESCRIPTION', 'Prescription'], ['OTHER', 'Other']];
 const KIND_LABEL: Record<string, string> = {
@@ -20,6 +20,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
   const [docs, setDocs] = useState<DocumentSummary[]>();
   const [kind, setKind] = useState('LAB_REPORT');
   const [busy, setBusy] = useState<string>();
+  const [step, setStep] = useState('Uploading');
   const [error, setError] = useState<string>();
   const [preview, setPreview] = useState<{ title: string; pages?: PreviewPage[]; error?: string }>();
 
@@ -37,8 +38,10 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
       if (!ACCEPTED.includes(type)) { setError(`${original.name}: only photos (JPG, PNG, HEIC) and PDFs can be attached.`); continue; }
       if (original.size > 60 * 1024 * 1024) { setError(`${original.name} is too large.`); continue; }
       setBusy(original.name);
-      // Photos are made much smaller first (a 3 MB phone photo becomes about 300 KB); PDFs are sent as they are
-      const file = await shrinkImage(original);
+      // Photos and big scanned PDFs are made much smaller first (a 3 MB phone photo becomes about 300 KB)
+      setStep('Making smaller:');
+      const file = await shrinkFile(original);
+      setStep('Uploading');
       if (file.size > 20 * 1024 * 1024) { setError(`${original.name} is larger than 20 MB.`); continue; }
       try {
         const start = await api.post<{ documentId: string; uploads: { url: string; contentType: string }[] }>(
@@ -91,7 +94,7 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
             {KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
           <label className="attach" style={{ flex: 1 }}>
-            {busy ? `Uploading ${busy}…` : '+ Attach photo or PDF (optional)'}
+            {busy ? `${step} ${busy}…` : '+ Attach photo or PDF (optional)'}
             <input type="file" multiple accept="image/*,application/pdf" disabled={!!busy}
                    onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
           </label>

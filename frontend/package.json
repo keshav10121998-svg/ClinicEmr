@@ -10,6 +10,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "pdf-lib": "1.17.1",
     "pdfjs-dist": "4.10.38",
     "qrcode-generator": "1.4.4",
     "react": "18.3.1",

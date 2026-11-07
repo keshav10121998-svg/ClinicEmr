@@ -9,7 +9,7 @@ export interface RenderedPdf {
 
 // pdf.js is large, so it loads only the first time a PDF is shown. The "legacy" build runs on older phone browsers.
 let pdfjs: Promise<typeof import('pdfjs-dist')> | undefined;
-function loadPdfjs() {
+export function loadPdfjs() {
   pdfjs ??= Promise.all([
     import('pdfjs-dist/legacy/build/pdf.mjs'),
     import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
