@@ -124,3 +124,40 @@ export interface PurgeResult {
   patients: number;
   files: number;
 }
+
+export interface RatingSummary {
+  average: number;
+  count: number;
+  distribution: number[];
+}
+
+/** One clinic's rating of ClinicEMR. {@code allowPublic}: the clinic agreed to its words and name being shown. */
+export interface AppFeedback {
+  clinicId: number;
+  clinicName: string;
+  city?: string;
+  stars: number;
+  comment?: string;
+  allowPublic: boolean;
+  ratedAt: string;
+}
+
+export interface ClinicAverage {
+  clinicId: number;
+  clinicName: string;
+  average: number;
+  count: number;
+}
+
+export interface AdminRatings {
+  app: RatingSummary;
+  appFeedback: AppFeedback[];
+  patients: RatingSummary;
+  clinics: ClinicAverage[];
+}
+
+export interface PublicRating {
+  average: number;
+  count: number;
+  testimonials: { stars: number; comment: string; clinicName: string; city?: string }[];
+}

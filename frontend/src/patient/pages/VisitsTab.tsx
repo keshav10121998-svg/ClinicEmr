@@ -30,7 +30,11 @@ export function VisitsTab({ profileId }: { profileId: string }) {
                   onClick={() => navigate(`/my/profiles/${profileId}/visits/${v.encounterId}`)}>
             <div className="between">
               <b>{dateTime(v.date)}</b>
-              {v.version > 1 && <span className="chip">updated by doctor</span>}
+              <span className="row" style={{ gap: 6 }}>
+                {v.version > 1 && <span className="chip">updated by doctor</span>}
+                {v.rating ? <span className="chip" aria-label={`You rated this ${v.rating} out of 5`}>★ {v.rating}</span>
+                  : <span className="chip" style={{ color: 'var(--accent)' }}>Rate this visit</span>}
+              </span>
             </div>
             <div>{v.clinicName}{v.clinicCity ? `, ${v.clinicCity}` : ''} · {v.doctorName}</div>
             <div className="small muted">{v.diagnoses}{v.medicines > 0 ? ` · ${v.medicines} medicine${v.medicines === 1 ? '' : 's'}` : ''}</div>

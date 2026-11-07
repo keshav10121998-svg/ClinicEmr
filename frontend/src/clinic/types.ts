@@ -438,3 +438,41 @@ export interface OwingList {
   truncated: boolean;
   items: Owing[];
 }
+
+/** {@code distribution[0]} is the number of 1-star ratings, up to {@code distribution[4]} for 5 stars. */
+export interface RatingSummary {
+  average: number;
+  count: number;
+  distribution: number[];
+}
+
+export interface DoctorRating {
+  doctorId: number;
+  doctorName: string;
+  average: number;
+  count: number;
+}
+
+/** What a patient wrote about a visit, without who they are. */
+export interface RatingComment {
+  stars: number;
+  comment?: string;
+  doctorName: string;
+  visitDate: string;
+  ratedAt: string;
+}
+
+export interface ClinicRatings {
+  mine: boolean;
+  summary: RatingSummary;
+  doctors: DoctorRating[];
+  recent: RatingComment[];
+}
+
+/** The clinic's own rating of ClinicEMR. */
+export interface AppRating {
+  stars: number;
+  comment?: string;
+  allowPublic: boolean;
+  updatedAt: string;
+}

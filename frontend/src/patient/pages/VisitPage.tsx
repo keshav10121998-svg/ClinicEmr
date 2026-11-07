@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openAuthed } from '../api';
 import type { VisitDetail } from '../types';
 import { date, dateTime } from '../format';
+import { RateVisit } from '../components/RateVisit';
 
 export function VisitPage() {
   const { profileId, encounterId } = useParams();
@@ -62,6 +63,7 @@ export function VisitPage() {
                 {c.followUp && <><dt>Next visit</dt><dd>{date(c.followUp.dueDate)}{c.followUp.note ? ` · ${c.followUp.note}` : ''}</dd></>}
               </dl>
             </div>
+            <RateVisit profileId={profileId!} encounterId={visit.encounterId} clinicName={visit.clinicName} initial={visit.myRating} />
           </>
         )}
       </main>

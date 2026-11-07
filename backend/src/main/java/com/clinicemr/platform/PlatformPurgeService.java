@@ -107,6 +107,7 @@ public class PlatformPurgeService {
         deleteEncounters(jdbc.sql("SELECT id FROM encounter WHERE doctor_id = :id OR created_by = :id")
                 .param("id", staffId).query(UUID.class).list(), t);
 
+        jdbc.sql("DELETE FROM patient_rating WHERE doctor_id = :id").param("id", staffId).update();
         jdbc.sql("DELETE FROM doctor_template WHERE doctor_id = :id").param("id", staffId).update();
         jdbc.sql("DELETE FROM doctor_favourite WHERE doctor_id = :id").param("id", staffId).update();
         // "Only this doctor" sharing ends with them; it must not widen to the whole clinic
@@ -139,7 +140,7 @@ public class PlatformPurgeService {
         deleteEncounters(jdbc.sql("SELECT id FROM encounter WHERE clinic_id = :c").param("c", clinicId).query(UUID.class).list(), t);
         deleteDocuments("d.clinic_id = :v", clinicId, t);
         t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE clinic_id = :c AND proof_key IS NOT NULL").param("c", clinicId).query(String.class).list());
-        for (String table : List.of("payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
+        for (String table : List.of("patient_rating", "app_rating", "payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
                 "problem_status", "medication_stop", "follow_up")) {
             jdbc.sql("DELETE FROM " + table + " WHERE clinic_id = :c").param("c", clinicId).update();
         }
@@ -178,7 +179,7 @@ public class PlatformPurgeService {
         deleteDocuments("d.profile_id = :v", profileId, t);
         t.files.addAll(jdbc.sql("SELECT proof_key FROM payment_request WHERE profile_id = :p AND proof_key IS NOT NULL").param("p", profileId).query(String.class).list());
         List<Long> consents = jdbc.sql("SELECT id FROM consent WHERE profile_id = :p").param("p", profileId).query(Long.class).list();
-        for (String table : List.of("payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
+        for (String table : List.of("patient_rating", "payment_request", "payment_entry", "visit_payment", "allergy", "allergy_review",
                 "problem_status", "medication_stop", "vital_sign", "diagnosis", "investigation_order", "follow_up",
                 "record_access_grant", "access_log", "profile_access")) {
             jdbc.sql("DELETE FROM " + table + " WHERE profile_id = :p").param("p", profileId).update();
@@ -201,7 +202,7 @@ public class PlatformPurgeService {
         }
         jdbc.sql("DELETE FROM prescription_item WHERE prescription_id IN (SELECT id FROM prescription WHERE encounter_id IN (:ids))")
                 .param("ids", ids).update();
-        for (String table : List.of("payment_entry", "visit_payment", "prescription", "vital_sign", "diagnosis",
+        for (String table : List.of("patient_rating", "payment_entry", "visit_payment", "prescription", "vital_sign", "diagnosis",
                 "investigation_order", "follow_up", "encounter_note", "encounter_version")) {
             jdbc.sql("DELETE FROM " + table + " WHERE encounter_id IN (:ids)").param("ids", ids).update();
         }

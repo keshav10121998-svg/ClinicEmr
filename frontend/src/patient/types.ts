@@ -23,6 +23,13 @@ export interface VisitItem {
   version: number;
   diagnoses: string;
   medicines: number;
+  /** The stars this patient gave the visit, if they rated it. */
+  rating?: number;
+}
+
+export interface MyRating {
+  stars: number;
+  comment?: string;
 }
 
 export interface RxItem {
@@ -44,6 +51,7 @@ export interface VisitDetail {
   date: string;
   version: number;
   amended: boolean;
+  myRating?: MyRating;
   content: {
     chiefComplaints?: string;
     examination?: string;

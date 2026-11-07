@@ -14,6 +14,7 @@ that follows the patient across clinics once they approve. Design and roadmap:
 | Patients | `POST /api/v1/clinic/patients` (duplicate check, clinic MRN), `POST /api/v1/clinic/patients/search-by-phone`, `GET /api/v1/clinic/patients?q=`, `GET /api/v1/clinic/patients/recent?limit=`, `GET /api/v1/clinic/patients/{id}` |
 | Visit numbers | `GET /api/v1/clinic/visit-stats` (patients and visits today, yesterday, last 7 days, this year, all time; India time), `GET /api/v1/clinic/visit-stats/visitors?range=today\|yesterday\|last_7_days\|this_year\|all` (who came, newest first, up to 500; diagnoses for doctors and nurses only) |
 | Payments | `GET/PUT /api/v1/clinic/encounters/{id}/payment` (paid, balance, dueDate), `POST …/payment/settle`, `POST …/payment/receive` (amount), `POST /api/v1/clinic/patients/{id}/payments/receive` (amount or full; latest visit first), `GET …/payments/history`, `GET /api/v1/clinic/payments/due?when=now\|all&mine=&patientId=` |
+| Ratings | Patient: `PUT /api/v1/patient/profiles/{id}/visits/{encounterId}/rating` (stars, comment). Clinic: `GET /api/v1/clinic/ratings`, `GET/PUT /api/v1/clinic/app-rating` (stars, comment, allowPublic). Super admin: `GET /api/v1/admin/ratings`. Public, no sign-in: `GET /api/v1/public/app-rating` |
 | Earnings | `GET /api/v1/clinic/earnings?mine=` (today, this month, this year, all time), `GET …/earnings/owing?range=today\|this_month\|this_year\|all&mine=` |
 | Payment proofs | Patient: `GET /api/v1/patient/profiles/{id}/balances`, `POST …/payment-requests` (multipart: clinicId, amount, note, proof), `GET …/payment-requests`. Clinic: `GET /api/v1/clinic/payment-requests?status=&patientId=`, `POST …/{id}/approve`, `POST …/{id}/reject` (reason) |
 | Documents | `POST /api/v1/clinic/patients/{id}/documents` (pre-signed upload URLs), `POST …/{docId}/complete`, `GET …/documents?encounterId=`, `GET …/documents/{docId}` (pre-signed view URLs); attach to a visit with `encounterId` |
@@ -141,6 +142,27 @@ The session token is kept in `sessionStorage`, so closing the tab signs out on s
 
 **Trying the sharing flow locally:** with no SMS provider configured, codes are written to the backend log
 (`backend/target/dev-server.log` when started as in the run instructions, look for `[DEV SMS`).
+
+### Ratings
+
+Two ratings, so that you can see how the app is doing and promote it:
+
+- **Patients rate the clinic and its doctor.** In the patient app, every signed visit has a **How was your visit?**
+  card: 1 to 5 stars and an optional comment (500 characters), once per visit, changeable later. The visit list shows
+  "Rate this visit" or the stars given. The clinic sees the ratings **without the patient's name**: **Patient ratings**
+  on Overview (admins and doctors) with the average, how many gave 1 to 5 stars, a line per doctor and the latest
+  comments. A doctor who isn't an admin sees only their own visits' ratings. Front desk and nurses don't see them.
+  Practice (sample) patients and removed visits never count.
+- **Clinics rate ClinicEMR.** **How do you like ClinicEMR?** on Overview for admins and doctors: stars, an optional
+  comment, and a tick box **ClinicEMR may show my words and my clinic's name on its website** (off unless ticked).
+  One rating per clinic, changeable.
+- **For you (`/admin` > Ratings):** the average of clinics' ratings of ClinicEMR with every clinic's words (and whether
+  it allowed them to be shown), the average of patients' ratings over all clinics, and each clinic's average.
+- **For promotion:** `GET /api/v1/public/app-rating` needs no sign-in and gives the average over **every** clinic that
+  rated (nothing is left out of the average) and the words, clinic name and city **only of clinics that ticked the
+  box**, best first, at most 12. Use it on a website or in a message. Patients' ratings of clinics are never public.
+- Permanently deleting a visit, a doctor, a patient or a clinic removes their ratings too. Deleting a doctor who rated
+  the app keeps the clinic's rating.
 
 ### Super admin (`/admin`)
 

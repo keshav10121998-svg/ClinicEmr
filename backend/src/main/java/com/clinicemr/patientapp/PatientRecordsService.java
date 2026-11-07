@@ -45,12 +45,15 @@ public class PatientRecordsService {
         this.audit = audit;
     }
 
+    /** {@code rating}: the stars this patient gave the visit, if they rated it. */
     public record VisitItem(UUID encounterId, String clinicName, String clinicCity, String doctorName, Instant date,
-                            int version, String diagnoses, int medicines) {
+                            int version, String diagnoses, int medicines, Integer rating) {
     }
 
+    /** {@code myRating}: how this patient rated the visit, if they did. */
     public record VisitDetail(UUID encounterId, String clinicName, String doctorName, String doctorQualifications,
-                              Instant date, int version, boolean amended, EncounterContent content) {
+                              Instant date, int version, boolean amended, EncounterContent content,
+                              com.clinicemr.rating.RatingService.MyRating myRating) {
     }
 
     public record PatientDocument(UUID id, String docType, String title, LocalDate recordDate, String source,
@@ -65,7 +68,8 @@ public class PatientRecordsService {
                        coalesce((SELECT string_agg(d.display, '; ' ORDER BY d.line_no) FROM diagnosis d
                                   WHERE d.encounter_id = e.id), '') AS diagnoses,
                        (SELECT count(*) FROM prescription_item pi JOIN prescription rx ON rx.id = pi.prescription_id
-                         WHERE rx.encounter_id = e.id)::int AS medicines
+                         WHERE rx.encounter_id = e.id)::int AS medicines,
+                       (SELECT r.stars FROM patient_rating r WHERE r.encounter_id = e.id)::int AS rating
                   FROM encounter e JOIN clinic c ON c.id = e.clinic_id JOIN staff_user s ON s.id = e.doctor_id
                  WHERE e.profile_id = :profileId AND e.status = 'SIGNED'
                  ORDER BY e.started_at DESC
@@ -83,8 +87,10 @@ public class PatientRecordsService {
         EncounterContent shown = new EncounterContent(c.chiefComplaints(), c.historyOfPresentIllness(), c.pastHistory(),
                 c.examination(), c.treatmentGiven(), c.advice(), null, c.vitals(), c.diagnoses(), c.prescription(),
                 c.investigations(), c.followUp());
+        com.clinicemr.rating.RatingService.MyRating mine = jdbc.sql("SELECT stars, comment FROM patient_rating WHERE encounter_id = :id")
+                .param("id", s.encounterId()).query(com.clinicemr.rating.RatingService.MyRating.class).optional().orElse(null);
         return new VisitDetail(s.encounterId(), s.clinic().name(), s.doctor().name(), s.doctor().qualifications(),
-                s.startedAt(), s.version(), s.version() > 1, shown);
+                s.startedAt(), s.version(), s.version() > 1, shown, mine);
     }
 
     public PrescriptionPdf prescriptionPdf(PatientContext p, UUID profileId, UUID encounterId) {
