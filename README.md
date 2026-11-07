@@ -172,7 +172,10 @@ The platform owner's own sign-in, separate from clinic staff and patients.
 
 - **Created on first start** from `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` (12+ characters; see DEPLOY.md).
   Once a super admin exists the settings are ignored. The password is never in the code. Five wrong passwords lock
-  the sign-in for 15 minutes; a sign-in lasts 12 hours.
+  the sign-in for 15 minutes; a sign-in lasts 12 hours. A space before or after the password is ignored. **Forgot it,
+  or it was set wrong?** Set `SUPER_ADMIN_RESET=true` with `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` and restart:
+  that email gets exactly that password and any lock is cleared (a new email is added next to the old one). Remove
+  `SUPER_ADMIN_RESET` afterwards (steps in DEPLOY.md).
 - **Totals:** clinics, doctors (and all staff accounts), patients, patient app users, and visits today / last 7 days /
   in total, with new clinics and patients this week. Practice (sample) patients are never counted.
 - **Doctors and staff:** everyone who signs in to a clinic, with their clinics, visits, patients and last visit;

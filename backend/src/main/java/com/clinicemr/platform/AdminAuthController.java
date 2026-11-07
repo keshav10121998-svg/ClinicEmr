@@ -60,7 +60,9 @@ public class AdminAuthController {
         if (admin.isPresent() && admin.get().lockedUntil() != null && admin.get().lockedUntil().isAfter(Instant.now())) {
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "LOCKED", "Too many wrong passwords. Try again in 15 minutes.");
         }
-        boolean ok = passwords.matches(req.password(), admin.map(AdminRow::passwordHash).orElse(dummyHash)) && admin.isPresent();
+        String hash = admin.map(AdminRow::passwordHash).orElse(dummyHash);
+        // A space typed or pasted after the password (phone keyboards add one) doesn't make it wrong
+        boolean ok = (passwords.matches(req.password(), hash) || passwords.matches(req.password().trim(), hash)) && admin.isPresent();
         if (!ok) {
             admin.ifPresent(a -> jdbc.sql("""
                     UPDATE platform_admin

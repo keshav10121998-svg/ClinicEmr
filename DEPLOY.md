@@ -94,6 +94,17 @@ Save; Render restarts the app, and the logs show `Super admin created for …`. 
 once the super admin exists, these settings are ignored (you can leave them or delete them). Five wrong passwords lock
 the sign-in for 15 minutes.
 
+**Can't sign in, or forgot the password?** The password is only saved the first time, so changing
+`SUPER_ADMIN_PASSWORD` later does nothing by itself. To set it again:
+
+1. In Render → **Environment**, make sure `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` (12+ characters) are what
+   you want, and add `SUPER_ADMIN_RESET` = `true`.
+2. Save. Render restarts the app, and the logs show `Super admin password for … was set`. That also clears a lock.
+3. Sign in at `/admin`, then **delete `SUPER_ADMIN_RESET`** (otherwise the password is set again at every start).
+
+If the logs instead say `Super admin not created` or `No super admin yet`, the email or password settings are missing
+or the password is shorter than 12 characters. A space pasted after the password is ignored.
+
 ## 6. First use
 
 1. Open the app and choose **Set up your clinic**. Use a **real, strong password**, not the test one from the README.

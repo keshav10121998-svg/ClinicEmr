@@ -169,6 +169,46 @@ class SuperAdminTest extends IntegrationTestBase {
         assertThat(count("SELECT count(*) FROM clinic WHERE id = " + live)).isEqualTo(1);
     }
 
+    @Test
+    void aStraySpaceAfterThePasswordIsForgiven() throws Exception {
+        jdbc.sql("DELETE FROM platform_admin").update();
+        // A space pasted after the password in the settings box is not part of the password
+        new SuperAdminSetup(jdbc, passwords, "space@example.com", ADMIN_PASSWORD + " \n", "Owner").run(null);
+        adminLogin("space@example.com", ADMIN_PASSWORD).andExpect(status().isOk());
+        // A phone keyboard that adds a space when signing in doesn't make it wrong either
+        adminLogin("space@example.com", ADMIN_PASSWORD + " ").andExpect(status().isOk());
+        adminLogin("space@example.com", ADMIN_PASSWORD + "x").andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void resetSetsThePasswordAgainAndUnlocks() throws Exception {
+        jdbc.sql("DELETE FROM platform_admin").update();
+        new SuperAdminSetup(jdbc, passwords, "reset@example.com", ADMIN_PASSWORD, "Owner").run(null);
+        // Changing the settings later does nothing without the reset switch
+        new SuperAdminSetup(jdbc, passwords, "reset@example.com", "a-different-password-1", "Owner").run(null);
+        adminLogin("reset@example.com", ADMIN_PASSWORD).andExpect(status().isOk());
+        adminLogin("reset@example.com", "a-different-password-1").andExpect(status().isUnauthorized());
+
+        // Locked out by wrong passwords (a good sign-in first clears the one wrong try above)
+        adminLogin("reset@example.com", ADMIN_PASSWORD).andExpect(status().isOk());
+        for (int i = 0; i < 5; i++) {
+            adminLogin("reset@example.com", "wrong-password").andExpect(status().isUnauthorized());
+        }
+        adminLogin("reset@example.com", ADMIN_PASSWORD).andExpect(status().isTooManyRequests());
+
+        // With the reset switch on, that email gets exactly the password in the settings, and is unlocked
+        new SuperAdminSetup(jdbc, passwords, "Reset@Example.com", "a-different-password-1", "Owner", true).run(null);
+        adminLogin("reset@example.com", "a-different-password-1").andExpect(status().isOk());
+        adminLogin("reset@example.com", ADMIN_PASSWORD).andExpect(status().isUnauthorized());
+        assertThat(admins()).isEqualTo(1);
+
+        // The switch also adds a new email next to the old one, and refuses a short password
+        new SuperAdminSetup(jdbc, passwords, "second@example.com", ADMIN_PASSWORD, "Second", true).run(null);
+        assertThat(admins()).isEqualTo(2);
+        new SuperAdminSetup(jdbc, passwords, "reset@example.com", "short", "Owner", true).run(null);
+        adminLogin("reset@example.com", "a-different-password-1").andExpect(status().isOk());
+    }
+
     private ResultActions adminPost(String path, String token) throws Exception {
         return mvc.perform(post(path).header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON).content("{}"));
     }
