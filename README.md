@@ -396,6 +396,13 @@ Object storage is mocked in the API tests; the disk store has its own unit tests
 
 ### How uploads and downloads work
 
+- **Photos are shrunk on the phone before they are sent** (`shared/shrinkImage.ts`), for clinic attachments, the
+  patient's documents and payment screenshots. The longest side is brought down to 1800 pixels and the picture is
+  saved as a JPEG (quality 0.75), so a 3 to 4 MB phone photo of a report becomes roughly 300 to 600 KB and stays easy
+  to read. This is the biggest saving on storage and on slow connections. PDFs, photos under 300 KB, HEIC (most
+  browsers can't read it) and anything that wouldn't come out clearly smaller are sent unchanged, and if shrinking
+  fails for any reason the original is uploaded, so an upload never fails because of it. Photos already stored are
+  not changed.
 - **Uploads go through the backend** (`STORAGE_UPLOAD_MODE=proxy`, the default). The app starts an upload, PUTs
   each page to the backend, which checks the size (20 MB per file) and the file's real type from its first bytes
   (PDF, JPEG, PNG, WebP, HEIC; anything else is refused), then writes it to storage. The bucket needs **no CORS

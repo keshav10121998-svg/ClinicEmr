@@ -4,6 +4,7 @@ import type { PatientDocument, UploadStart } from '../types';
 import { date } from '../format';
 import { DateField } from '../../shared/DateField';
 import { showPdf } from '../../shared/pdf/PdfViewer';
+import { shrinkImage } from '../../shared/shrinkImage';
 
 const DOC_TYPES: Record<string, string> = {
   PRESCRIPTION: 'Prescription',
@@ -117,14 +118,17 @@ function UploadForm({ profileId, onDone, onCancel }: { profileId: string; onDone
     e.preventDefault();
     setError(undefined);
     try {
+      // Photos are made much smaller first (a 3 MB phone photo becomes about 300 KB); PDFs are sent as they are
+      setProgress('Making photos smaller…');
+      const prepared = await Promise.all(files.map(shrinkImage));
       setProgress('Preparing…');
       const start = await api.post<UploadStart>(`/patient/profiles/${profileId}/documents`, {
         docType, title: title || undefined, recordDate: recordDate || undefined,
-        files: files.map((f) => ({ mimeType: mimeOf(f), sizeBytes: f.size })),
+        files: prepared.map((f) => ({ mimeType: mimeOf(f), sizeBytes: f.size })),
       });
       for (const [i, u] of start.uploads.entries()) {
         setProgress(`Uploading page ${i + 1} of ${start.uploads.length}…`);
-        await putFile(u.url, u.contentType, files[i]);
+        await putFile(u.url, u.contentType, prepared[i]);
       }
       setProgress('Finishing…');
       await api.post(`/patient/profiles/${profileId}/documents/${start.documentId}/complete`);

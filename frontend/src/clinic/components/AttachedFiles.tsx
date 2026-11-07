@@ -3,6 +3,7 @@ import { api, ApiError, putFile } from '../api';
 import type { DocumentDetail, DocumentSummary } from '../types';
 import { date } from '../format';
 import { FilePreview, type PreviewPage } from './FilePreview';
+import { shrinkImage } from '../../shared/shrinkImage';
 
 const KINDS: [string, string][] = [['LAB_REPORT', 'Report'], ['IMAGING', 'Scan / X-ray'], ['PRESCRIPTION', 'Prescription'], ['OTHER', 'Other']];
 const KIND_LABEL: Record<string, string> = {
@@ -31,15 +32,18 @@ export function AttachedFiles({ patientId, encounterId, canAttach, title = 'File
     if (!files?.length) return;
     setError(undefined);
     const added: DocumentSummary[] = [];
-    for (const file of Array.from(files)) {
-      const type = file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : '');
-      if (!ACCEPTED.includes(type)) { setError(`${file.name}: only photos (JPG, PNG, HEIC) and PDFs can be attached.`); continue; }
-      if (file.size > 20 * 1024 * 1024) { setError(`${file.name} is larger than 20 MB.`); continue; }
-      setBusy(file.name);
+    for (const original of Array.from(files)) {
+      const type = original.type || (original.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : '');
+      if (!ACCEPTED.includes(type)) { setError(`${original.name}: only photos (JPG, PNG, HEIC) and PDFs can be attached.`); continue; }
+      if (original.size > 60 * 1024 * 1024) { setError(`${original.name} is too large.`); continue; }
+      setBusy(original.name);
+      // Photos are made much smaller first (a 3 MB phone photo becomes about 300 KB); PDFs are sent as they are
+      const file = await shrinkImage(original);
+      if (file.size > 20 * 1024 * 1024) { setError(`${original.name} is larger than 20 MB.`); continue; }
       try {
         const start = await api.post<{ documentId: string; uploads: { url: string; contentType: string }[] }>(
           `/clinic/patients/${patientId}/documents`,
-          { docType: kind, title: file.name.replace(/\.[^.]+$/, '').slice(0, 200), files: [{ mimeType: type, sizeBytes: file.size }], encounterId },
+          { docType: kind, title: file.name.replace(/\.[^.]+$/, '').slice(0, 200), files: [{ mimeType: file.type || type, sizeBytes: file.size }], encounterId },
         );
         await putFile(start.uploads[0].url, file, start.uploads[0].contentType);
         added.push(await api.post<DocumentSummary>(`/clinic/patients/${patientId}/documents/${start.documentId}/complete`));

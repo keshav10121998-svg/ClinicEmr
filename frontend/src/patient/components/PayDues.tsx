@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, postForm } from '../api';
 import type { ClinicBalance, PaymentRequest } from '../types';
 import { date, dateTime } from '../format';
+import { shrinkImage } from '../../shared/shrinkImage';
 
 const rupees = (n: number) => '₹' + n.toLocaleString('en-IN');
 const STATUS: Record<PaymentRequest['status'], string> = {
@@ -96,9 +97,15 @@ function SendProof({ profileId, clinic, max, onDone, onCancel }:
     setAmount(v > max ? String(max) : digits.replace(/^0+(?=\d)/, ''));
   }
 
-  function pick(f?: File) {
+  async function pick(picked?: File) {
     setError(undefined);
-    if (!f) return;
+    if (!picked) return;
+    if (picked.size > 30 * 1024 * 1024) {
+      setError('That file is too big. Send a smaller screenshot.');
+      return;
+    }
+    // A photo or screenshot is made much smaller first, so it also sends quickly on a slow connection
+    const f = await shrinkImage(picked);
     if (f.size > 8 * 1024 * 1024) {
       setError('That file is bigger than 8 MB. Send a smaller screenshot.');
       return;
