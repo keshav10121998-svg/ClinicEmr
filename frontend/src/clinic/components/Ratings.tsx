@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { useCached } from '../cache';
 import { date } from '../format';
@@ -70,6 +71,34 @@ function PatientRatingsCard() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * A short line on Overview that opens the Ratings page: the average and count, and a nudge to rate ClinicEMR until the
+ * clinic has. Shows nothing when there is nothing to say, and nothing for staff who can't see ratings.
+ */
+export function RatingsStrip() {
+  const { has } = useSession();
+  return has('ADMIN', 'DOCTOR') ? <RatingsStripInner /> : null;
+}
+
+function RatingsStripInner() {
+  const navigate = useNavigate();
+  const { data } = useCached<ClinicRatings>('/clinic/ratings', 'Could not load the ratings.');
+  const { data: mine, refreshing } = useCached<AppRating | undefined>('/clinic/app-rating', 'Could not load your rating.');
+  const rated = data && data.summary.count > 0;
+  const askForApp = mine === undefined && !refreshing;
+  if (!rated && !askForApp) return null;
+  return (
+    <button type="button" className="ratings-strip" onClick={() => navigate('/ratings')}>
+      {rated && data && (
+        <span><Stars value={data.summary.average} size={18} /> <b>{data.summary.average.toFixed(1)}</b>
+          <span className="muted small"> from {data.summary.count} {data.summary.count === 1 ? 'patient rating' : 'patient ratings'}</span></span>
+      )}
+      {askForApp && <span className="small">How do you like ClinicEMR? <u>Rate it</u></span>}
+      <span className="small">See ratings ›</span>
+    </button>
   );
 }
 

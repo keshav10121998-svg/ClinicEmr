@@ -1,5 +1,5 @@
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { ChartIcon, ExitIcon, PeopleIcon, RupeeIcon, StaffIcon } from './components/Icons';
+import { ChartIcon, ExitIcon, PeopleIcon, RupeeIcon, StaffIcon, StarIcon } from './components/Icons';
 import { onlyMine, useDuePayments, usePaymentRequests } from './payments';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
@@ -11,6 +11,7 @@ import { VisitPage } from './pages/VisitPage';
 import { StaffPage } from './pages/StaffPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { EarningsPage } from './pages/EarningsPage';
+import { RatingsPage } from './pages/RatingsPage';
 import { PdfViewerHost } from '../shared/pdf/PdfViewer';
 
 export function App() {
@@ -39,6 +40,8 @@ function ClinicShell() {
   const due = (dues?.length ?? 0) + (requests?.length ?? 0);
   // Nurses don't see money
   const seesMoney = has('ADMIN', 'DOCTOR', 'FRONT_DESK');
+  // Ratings are for the people the patients rated
+  const seesRatings = has('ADMIN', 'DOCTOR');
   return (
     <>
       <PdfViewerHost />
@@ -50,6 +53,7 @@ function ClinicShell() {
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/earnings" element={seesMoney ? <EarningsPage /> : <Navigate to="/patients" replace />} />
+          <Route path="/ratings" element={seesRatings ? <RatingsPage /> : <Navigate to="/patients" replace />} />
           <Route path="/patients/:patientId" element={<PatientPage />} />
           <Route path="/visits/:visitId" element={<VisitPage />} />
           <Route path="/staff" element={has('ADMIN') ? <StaffPage /> : <Navigate to="/patients" replace />} />
@@ -70,6 +74,7 @@ function TopBar({ due }: { due: number }) {
         <NavLink to="/patients">Patients</NavLink>
         <NavLink to="/overview">Overview{due > 0 && <DueCount n={due} />}</NavLink>
         {has('ADMIN', 'DOCTOR', 'FRONT_DESK') && <NavLink to="/earnings">Earnings</NavLink>}
+        {has('ADMIN', 'DOCTOR') && <NavLink to="/ratings">Ratings</NavLink>}
         {has('ADMIN') && <NavLink to="/staff">Staff</NavLink>}
       </nav>
       <span className="spacer" />
@@ -104,6 +109,7 @@ function BottomTabs({ due }: { due: number }) {
       <NavLink to="/patients"><PeopleIcon />Patients</NavLink>
       <NavLink to="/overview" className="tab-with-count"><ChartIcon />Overview{due > 0 && <DueCount n={due} />}</NavLink>
       {has('ADMIN', 'DOCTOR', 'FRONT_DESK') && <NavLink to="/earnings"><RupeeIcon />Earnings</NavLink>}
+      {has('ADMIN', 'DOCTOR') && <NavLink to="/ratings"><StarIcon />Ratings</NavLink>}
       {has('ADMIN') && <NavLink to="/staff"><StaffIcon />Staff</NavLink>}
       <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }}><ExitIcon />Sign out</button>
     </nav>

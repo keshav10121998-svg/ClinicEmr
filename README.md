@@ -149,13 +149,14 @@ Two ratings, so that you can see how the app is doing and promote it:
 
 - **Patients rate the clinic and its doctor.** In the patient app, every signed visit has a **How was your visit?**
   card: 1 to 5 stars and an optional comment (500 characters), once per visit, changeable later. The visit list shows
-  "Rate this visit" or the stars given. The clinic sees the ratings **without the patient's name**: **Patient ratings**
-  on Overview (admins and doctors) with the average, how many gave 1 to 5 stars, a line per doctor and the latest
+  "Rate this visit" or the stars given. The clinic sees the ratings **without the patient's name** on the **Ratings** page
+  (a tab in the top and bottom navigation, for admins and doctors) under **Patient ratings**, with the average, how many gave 1 to 5 stars, a line per doctor and the latest
   comments. A doctor who isn't an admin sees only their own visits' ratings. Front desk and nurses don't see them.
   Practice (sample) patients and removed visits never count.
-- **Clinics rate ClinicEMR.** **How do you like ClinicEMR?** on Overview for admins and doctors: stars, an optional
+- **Clinics rate ClinicEMR.** **How do you like ClinicEMR?** on the same Ratings page: stars, an optional
   comment, and a tick box **ClinicEMR may show my words and my clinic's name on its website** (off unless ticked).
-  One rating per clinic, changeable.
+  One rating per clinic, changeable. Overview shows only a short line (the average, and a nudge to rate ClinicEMR
+  until the clinic has) that opens the Ratings page.
 - **For you (`/admin` > Ratings):** the average of clinics' ratings of ClinicEMR with every clinic's words (and whether
   it allowed them to be shown), the average of patients' ratings over all clinics, and each clinic's average.
 - **For promotion:** `GET /api/v1/public/app-rating` needs no sign-in and gives the average over **every** clinic that

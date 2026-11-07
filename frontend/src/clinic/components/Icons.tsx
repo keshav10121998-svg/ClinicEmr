@@ -14,6 +14,9 @@ export const ExitIcon = () => (
 export const ChartIcon = () => (
   <svg {...base}><path d="M4 20h16" /><rect x="5.5" y="11" width="3" height="6" rx="1" /><rect x="10.5" y="6" width="3" height="11" rx="1" /><rect x="15.5" y="9" width="3" height="8" rx="1" /></svg>
 );
+export const StarIcon = () => (
+  <svg {...base}><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" /></svg>
+);
 export const RupeeIcon = () => (
   <svg {...base}><path d="M7 5h10M7 9.5h10M7 5h3.5a4.5 4.5 0 0 1 0 9H7l7.5 6" /></svg>
 );

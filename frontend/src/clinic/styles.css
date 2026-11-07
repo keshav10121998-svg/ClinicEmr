@@ -466,3 +466,5 @@ button.danger-solid { background: var(--danger); border-color: var(--danger); co
 .admin-link-btn { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); font-weight: 600; text-decoration: none; background: var(--surface); }
 .admin-rating-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .admin-url { overflow-wrap: anywhere; font-size: 13px; padding: 4px 8px; border-radius: 6px; background: var(--surface-2); }
+.ratings-strip { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; width: 100%; min-height: 48px; padding: 8px 14px; text-align: left; border-radius: var(--radius, 10px); border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ratings-strip:hover { border-color: var(--accent); }
