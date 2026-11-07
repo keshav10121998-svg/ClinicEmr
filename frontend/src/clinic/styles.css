@@ -468,3 +468,9 @@ button.danger-solid { background: var(--danger); border-color: var(--danger); co
 .admin-url { overflow-wrap: anywhere; font-size: 13px; padding: 4px 8px; border-radius: 6px; background: var(--surface-2); }
 .ratings-strip { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; width: 100%; min-height: 48px; padding: 8px 14px; text-align: left; border-radius: var(--radius, 10px); border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .ratings-strip:hover { border-color: var(--accent); }
+
+/* ----- profile menu on phones (the top bar has no room for the name) */
+.profile-menu { position: relative; }
+.profile-btn { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; }
+.profile-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 210px; display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(16, 40, 34, .18); }
+.profile-pop .profile-signout { margin-top: 8px; min-height: 44px; width: 100%; }

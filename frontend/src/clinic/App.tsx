@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { ChartIcon, ExitIcon, PeopleIcon, RupeeIcon, StaffIcon, StarIcon } from './components/Icons';
+import { ChartIcon, PeopleIcon, RupeeIcon, StaffIcon, StarIcon } from './components/Icons';
 import { onlyMine, useDuePayments, usePaymentRequests } from './payments';
 import { useSession } from './session';
 import { LoginPage } from './pages/LoginPage';
@@ -67,6 +68,7 @@ function ClinicShell() {
 function TopBar({ due }: { due: number }) {
   const { session, clinic, logout, chooseClinic, has } = useSession();
   const navigate = useNavigate();
+  const signOut = () => { logout(); navigate('/', { replace: true }); };
   return (
     <header className="topbar">
       <a className="brand" href="/patients">ClinicEMR</a>
@@ -93,15 +95,46 @@ function TopBar({ due }: { due: number }) {
         <span className="who clinic-name">{clinic!.clinicName}</span>
       )}
       <span className="who">{session!.name} · {clinic!.roles.map(roleLabel).join(', ')}</span>
-      <button className="link desktop-only" onClick={() => { logout(); navigate('/', { replace: true }); }}>Sign out</button>
+      <button className="link desktop-only" onClick={signOut}>Sign out</button>
+      <ProfileMenu name={session!.name} roles={clinic!.roles.map(roleLabel).join(', ')} onSignOut={signOut} />
     </header>
+  );
+}
+
+/**
+ * Phones have no room for the name in the top bar, so the profile is a round button with the person's initials; it opens
+ * a small card with the name, role and Sign out. Closes with a tap outside, Esc, or when an item is chosen.
+ */
+function ProfileMenu({ name, roles, onSignOut }: { name: string; roles: string; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  const initials = name.trim().split(/\s+/).filter((p) => !/^dr\.?$/i.test(p)).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
+  return (
+    <div className="profile-menu phone-only" ref={box}>
+      <button type="button" className="profile-btn" aria-haspopup="menu" aria-expanded={open} aria-label={`Profile: ${name}`}
+              onClick={() => setOpen((v) => !v)}>{initials}</button>
+      {open && (
+        <div className="profile-pop" role="menu">
+          <b>{name}</b>
+          <span className="muted small">{roles}</span>
+          <button type="button" role="menuitem" className="profile-signout" onClick={onSignOut}>Sign out</button>
+        </div>
+      )}
+    </div>
   );
 }
 
 /** Phone navigation along the bottom edge, within thumb reach. Hidden on wider screens and during a visit. */
 function BottomTabs({ due }: { due: number }) {
-  const { logout, has } = useSession();
-  const navigate = useNavigate();
+  const { has } = useSession();
   const { pathname } = useLocation();
   if (pathname.startsWith('/visits/')) return null;
   return (
@@ -111,7 +144,6 @@ function BottomTabs({ due }: { due: number }) {
       {has('ADMIN', 'DOCTOR', 'FRONT_DESK') && <NavLink to="/earnings"><RupeeIcon />Earnings</NavLink>}
       {has('ADMIN', 'DOCTOR') && <NavLink to="/ratings"><StarIcon />Ratings</NavLink>}
       {has('ADMIN') && <NavLink to="/staff"><StaffIcon />Staff</NavLink>}
-      <button type="button" onClick={() => { logout(); navigate('/', { replace: true }); }}><ExitIcon />Sign out</button>
     </nav>
   );
 }

@@ -38,7 +38,8 @@ One React + TypeScript + Vite app for clinic staff and patients, served by the b
 a *Clinic staff* / *Patient / family* switch. Staff screens live at `/`; patient screens at `/my`. Each side keeps its
 own sign-in and its own look.
 
-Most clinics run on a phone, so the clinic screens are built phone-first. Under 760px wide they get a bottom tab bar,
+Most clinics run on a phone, so the clinic screens are built phone-first. Under 760px wide they get a bottom tab bar (Sign out is not in it: the round
+profile button with your initials at the top right opens a card with your name, role and **Sign out**),
 a round **+** button for a new patient, Visits / Health / Files tabs on a patient, visit cards instead of a table,
 and the main action (*Start visit*, *Finish visit*) pinned within thumb reach. Wider screens keep the two-column
 layout. Clinic screens so far:
